@@ -382,3 +382,106 @@ body {
   font-size: .88rem; color: #444; cursor: pointer;
 }
 .tag-popup-item input[type="checkbox"] { cursor: pointer; accent-color: #3d82f0; }
+
+/* ── カンバン ── */
+.kanban {
+  display: flex; gap: 14px; align-items: flex-start; min-height: 400px;
+}
+.kanban-col {
+  flex: 1; min-width: 0; background: #f5f5f5; border-radius: 12px; padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.kanban-col-doing { background: #eef4ff; }
+.kanban-col-header {
+  font-size: .88rem; font-weight: bold; color: #555;
+  padding: 2px 4px 8px; border-bottom: 1.5px solid #e0e0e0;
+  display: flex; align-items: center; gap: 6px;
+}
+.kanban-sort-sel {
+  margin-left: auto; font-size: .75rem; color: #777;
+  border: 1px solid #d8d8d8; border-radius: 6px;
+  padding: 2px 4px; background: #fff; cursor: pointer;
+  font-family: inherit;
+}
+.kanban-col-doing .kanban-sort-sel { background: #f5f9ff; }
+.kanban-count {
+  font-size: .78rem; font-weight: normal; color: #999;
+  background: #e5e5e5; border-radius: 10px; padding: 1px 7px; min-width: 20px; text-align: center;
+}
+.kanban-col-doing .kanban-count { background: #d0e4ff; color: #3d82f0; }
+.kanban-cards {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: calc(100vh - 260px); overflow-y: auto; padding-bottom: 4px;
+}
+
+.kanban-card {
+  background: #fff; border-radius: 10px; border: 1.5px solid #e2e2e2;
+  padding: 10px 12px; cursor: pointer; transition: box-shadow .12s, border-color .12s;
+  box-shadow: 0 1px 4px #0000000d;
+}
+.kanban-card:hover { box-shadow: 0 3px 12px #00000018; border-color: #c8c8c8; }
+.kanban-card.selected { border-color: #3d82f0; box-shadow: 0 0 0 2px #3d82f020; }
+
+.kanban-card-title-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px; margin-bottom: 4px;
+}
+.kanban-card-title {
+  font-size: .9rem; font-weight: bold; color: #333;
+  line-height: 1.4; word-break: break-word; flex: 1; min-width: 0;
+}
+.kanban-card-deadline {
+  font-size: .75rem; white-space: nowrap; flex-shrink: 0;
+}
+.kanban-dl-future  { color: #999; }
+.kanban-dl-today   { color: #eeb65e; font-weight: bold; }
+.kanban-dl-overdue { color: #e38787; font-weight: bold; }
+
+.kanban-card.overdue { box-shadow: 0 1px 4px #0000000d, inset 4px 0 0 #f9a8a8; }
+.kanban-card.today   { box-shadow: 0 1px 4px #0000000d, inset 4px 0 0 #fcd9a0; }
+.kanban-card.overdue:hover { box-shadow: 0 3px 12px #00000018, inset 4px 0 0 #f9a8a8; }
+.kanban-card.today:hover   { box-shadow: 0 3px 12px #00000018, inset 4px 0 0 #fcd9a0; }
+.kanban-card-memo {
+  font-size: .82rem; color: #666; line-height: 1.5; margin-bottom: 6px;
+  word-break: break-word; white-space: pre-wrap;
+}
+.kanban-card-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.kanban-card-tags { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+
+.kanban-move-btns { display: flex; gap: 4px; }
+.btn-kmove {
+  background: none; border: 1px solid #d0d0d0; border-radius: 6px;
+  padding: 2px 7px; font-size: .78rem; color: #888; cursor: pointer;
+  transition: background .1s, color .1s, border-color .1s;
+}
+.btn-kmove:hover { background: #3d82f0; color: #fff; border-color: #3d82f0; }
+
+.btn-klink {
+  background: none; border: none; cursor: pointer; color: #3d82f0;
+  font-size: .82rem; padding: 2px 5px; border-radius: 5px;
+  transition: background .1s;
+}
+.btn-klink:hover { background: #dceeff; }
+
+/* ── リストビュー: doingカード ── */
+.todo-card.doing { border-left: 3px solid #3d82f0; }
+
+/* ── チェックボタン: doing状態 ── */
+.check.doing {
+  background: #dceeff; border-color: #3d82f0; color: #3d82f0;
+}
+.check.doing::after { content: '▶'; }
+
+/* ── ステータスラジオボタン(サイドバー) ── */
+.status-radios {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.status-radio-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: .88rem; color: #444; cursor: pointer;
+}
+.status-radio-label input[type="radio"] {
+  accent-color: #3d82f0; cursor: pointer; width: 15px; height: 15px;
+}

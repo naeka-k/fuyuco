@@ -30,6 +30,11 @@ def init_db():
             conn.execute("ALTER TABLE todos ADD COLUMN recurrence_id INTEGER")
         except Exception:
             pass
+        try:
+            conn.execute("ALTER TABLE todos ADD COLUMN status TEXT NOT NULL DEFAULT 'todo'")
+            conn.execute("UPDATE todos SET status = 'done' WHERE done = 1 AND status = 'todo'")
+        except Exception:
+            pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -258,30 +263,46 @@ def create_todo(title, deadline, recurrence=None, urls=None):
         todo["urls"] = _parse_urls(todo.get("url"))
     return todo
 
+def _apply_status(conn, todo_id, todo, next_status):
+    done = 1 if next_status == 'done' else 0
+    conn.execute("UPDATE todos SET status = ?, done = ? WHERE id = ?", (next_status, done, todo_id))
+    if next_status == 'done' and not todo["done"] and todo["recurrence"] and todo["recurrence_id"] and todo["deadline"]:
+        rec_data = _parse_rec(todo["recurrence"])
+        end_date = rec_data.get("end")
+        next_dl = _calc_next_deadline(todo["deadline"], rec_data)
+        if next_dl and (not end_date or next_dl[:10] <= end_date):
+            existing = conn.execute(
+                "SELECT id FROM todos WHERE recurrence_id = ? AND deadline = ? AND done = 0",
+                (todo["recurrence_id"], next_dl)
+            ).fetchone()
+            if not existing:
+                cur = conn.execute(
+                    "INSERT INTO todos (title, deadline, memo, url, recurrence, recurrence_id) VALUES (?, ?, ?, ?, ?, ?)",
+                    (todo["title"], next_dl, todo["memo"], todo["url"], todo["recurrence"], todo["recurrence_id"])
+                )
+                new_id = cur.lastrowid
+                for tag in conn.execute("SELECT tag_id FROM todo_tag_links WHERE todo_id = ?", (todo_id,)).fetchall():
+                    conn.execute("INSERT OR IGNORE INTO todo_tag_links (todo_id, tag_id) VALUES (?, ?)", (new_id, tag["tag_id"]))
+
 def toggle_todo(todo_id):
+    _NEXT = {'todo': 'doing', 'doing': 'done', 'done': 'todo'}
     with get_todo_conn() as conn:
-        conn.execute("UPDATE todos SET done = 1 - done WHERE id = ?", (todo_id,))
         row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
         if row is None: return None
         todo = dict(row)
-        if todo["done"] and todo["recurrence"] and todo["recurrence_id"] and todo["deadline"]:
-            rec_data = _parse_rec(todo["recurrence"])
-            end_date = rec_data.get("end")
-            next_dl = _calc_next_deadline(todo["deadline"], rec_data)
-            if next_dl and (not end_date or next_dl[:10] <= end_date):
-                existing = conn.execute(
-                    "SELECT id FROM todos WHERE recurrence_id = ? AND deadline = ? AND done = 0",
-                    (todo["recurrence_id"], next_dl)
-                ).fetchone()
-                if not existing:
-                    cur = conn.execute(
-                        "INSERT INTO todos (title, deadline, memo, url, recurrence, recurrence_id) VALUES (?, ?, ?, ?, ?, ?)",
-                        (todo["title"], next_dl, todo["memo"], todo["url"], todo["recurrence"], todo["recurrence_id"])
-                    )
-                    new_id = cur.lastrowid
-                    for tag in conn.execute("SELECT tag_id FROM todo_tag_links WHERE todo_id = ?", (todo_id,)).fetchall():
-                        conn.execute("INSERT OR IGNORE INTO todo_tag_links (todo_id, tag_id) VALUES (?, ?)", (new_id, tag["tag_id"]))
-        return _attach_todo_tags(conn, [todo])[0]
+        current = todo.get("status") or ('done' if todo["done"] else 'todo')
+        _apply_status(conn, todo_id, todo, _NEXT[current])
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        return _attach_todo_tags(conn, [dict(row)])[0]
+
+def set_todo_status(todo_id, status):
+    with get_todo_conn() as conn:
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        if row is None: return None
+        todo = dict(row)
+        _apply_status(conn, todo_id, todo, status)
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        return _attach_todo_tags(conn, [dict(row)])[0]
 
 def delete_todo(todo_id):
     with get_todo_conn() as conn:

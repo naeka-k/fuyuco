@@ -9,6 +9,7 @@
 <body>
   <div class="tab-bar">
     <button class="tab active" id="tab-todo" onclick="switchSection('todo')">TODO</button>
+    <button class="tab" id="tab-kanban" onclick="switchSection('kanban')">カンバン</button>
     <button class="tab" id="tab-note" onclick="switchSection('note')">メモ</button>
   </div>
 
@@ -41,6 +42,33 @@
         <p class="empty" id="todo-empty" style="display:none">タスクがありません</p>
       </div>
 
+      <!-- カンバン セクション -->
+      <div id="kanban-section" style="display:none">
+        <div class="kanban">
+          <div class="kanban-col">
+            <div class="kanban-col-header">
+              <span>未着手</span><span class="kanban-count" id="k-count-todo"></span>
+              <select class="kanban-sort-sel" id="k-sort-todo" onchange="renderKanban()"></select>
+            </div>
+            <div class="kanban-cards" id="k-todo"></div>
+          </div>
+          <div class="kanban-col kanban-col-doing">
+            <div class="kanban-col-header">
+              <span>実施中</span><span class="kanban-count" id="k-count-doing"></span>
+              <select class="kanban-sort-sel" id="k-sort-doing" onchange="renderKanban()"></select>
+            </div>
+            <div class="kanban-cards" id="k-doing"></div>
+          </div>
+          <div class="kanban-col">
+            <div class="kanban-col-header">
+              <span>完了</span><span class="kanban-count" id="k-count-done"></span>
+              <select class="kanban-sort-sel" id="k-sort-done" onchange="renderKanban()"></select>
+            </div>
+            <div class="kanban-cards" id="k-done"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- メモ セクション -->
       <div id="note-section" style="display:none">
         <div class="topbar">
@@ -61,6 +89,14 @@
         <div class="field">
           <label>タイトル</label>
           <input type="text" id="sb-title" />
+        </div>
+        <div class="field" id="sb-status-field">
+          <label>ステータス</label>
+          <div class="status-radios">
+            <label class="status-radio-label"><input type="radio" name="sb-status" value="todo" onchange="setStatusSelected('todo')"><span>未着手</span></label>
+            <label class="status-radio-label"><input type="radio" name="sb-status" value="doing" onchange="setStatusSelected('doing')"><span>実施中</span></label>
+            <label class="status-radio-label"><input type="radio" name="sb-status" value="done" onchange="setStatusSelected('done')"><span>完了</span></label>
+          </div>
         </div>
         <div class="field">
           <label>期限</label>
@@ -97,10 +133,6 @@
             <label>日付</label>
             <div class="recurrence-date-grid" id="sb-date-grid"></div>
           </div>
-          <div class="field">
-            <label>終了日</label>
-            <input type="date" id="sb-recurrence-end" />
-          </div>
         </div>
         <div class="field">
           <label>参考URL</label>
@@ -120,7 +152,6 @@
         </div>
       </div>
       <div class="sidebar-actions">
-        <button class="btn-done-toggle" id="sb-done-btn" onclick="toggleSelected()"></button>
         <button class="btn-discard" id="sb-discard-btn" onclick="discardSidebar()">破棄</button>
         <button class="btn-sidebar-del" id="sb-del-btn" onclick="delSelected()">削除</button>
       </div>
@@ -179,18 +210,21 @@
       activeSection = section;
       history.replaceState(null, '', '#' + section);
       document.getElementById('tab-todo').classList.toggle('active', section === 'todo');
+      document.getElementById('tab-kanban').classList.toggle('active', section === 'kanban');
       document.getElementById('tab-note').classList.toggle('active', section === 'note');
       document.getElementById('todo-section').style.display = section === 'todo' ? '' : 'none';
+      document.getElementById('kanban-section').style.display = section === 'kanban' ? '' : 'none';
       document.getElementById('note-section').style.display = section === 'note' ? '' : 'none';
       document.getElementById('newTagColorBtn').style.background =
-        section === 'todo' ? todoSelectedColor : noteSelectedColor;
+        section === 'note' ? noteSelectedColor : todoSelectedColor;
       if (section === 'note') closeSidebar();
       renderTagNav();
-      if (section === 'todo') {
-        fetchTodoTags().then(() => fetchTodos());
-      } else {
+      if (section === 'note') {
         fetchNoteTags().then(() => fetchNotes());
+      } else {
+        fetchTodoTags().then(() => fetchTodos());
       }
+      if (section === 'kanban') closeSidebar();
     }
 
     // ── ポップアップ共通 ────────────────────────
@@ -263,10 +297,12 @@
 
     // ── タグナビ共通 ────────────────────────────
     function renderTagNav() {
-      const tags      = activeSection === 'todo' ? allTodoTags : allNoteTags;
-      const activeId  = activeSection === 'todo' ? activeTodoTagId : activeNoteTagId;
-      const items     = activeSection === 'todo' ? allTodos : allNotes;
-      const tagsApi   = activeSection === 'todo' ? TODO_TAGS_API : NOTE_TAGS_API;
+      const tags      = activeSection !== 'note' ? allTodoTags : allNoteTags;
+      const activeId  = activeSection !== 'note' ? activeTodoTagId : activeNoteTagId;
+      const items     = activeSection === 'note' ? allNotes
+                      : activeSection === 'kanban' ? allTodos.filter(t => !t.recurrence)
+                      : allTodos;
+      const tagsApi   = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
       const ul = document.getElementById('tagList');
       ul.innerHTML = '';
 
@@ -300,7 +336,7 @@
               method: 'PATCH', headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({ color }),
             });
-            if (activeSection === 'todo') { await fetchTodoTags(); fetchTodos(); }
+            if (activeSection !== 'note') { await fetchTodoTags(); fetchTodos(); }
             else { await fetchNoteTags(); fetchNotes(); }
           });
         });
@@ -317,7 +353,7 @@
     }
 
     async function selectTag(tagId) {
-      if (activeSection === 'todo') {
+      if (activeSection !== 'note') {
         activeTodoTagId = tagId;
         await fetchTodos();
       } else {
@@ -330,24 +366,24 @@
     async function addTag() {
       const name = document.getElementById('tagInput').value.trim();
       if (!name) return;
-      const tagsApi = activeSection === 'todo' ? TODO_TAGS_API : NOTE_TAGS_API;
-      const color   = activeSection === 'todo' ? todoSelectedColor : noteSelectedColor;
+      const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
+      const color   = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
       await fetch(tagsApi, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ name, color }),
       });
       document.getElementById('tagInput').value = '';
-      if (activeSection === 'todo') await fetchTodoTags();
+      if (activeSection !== 'note') await fetchTodoTags();
       else await fetchNoteTags();
     }
 
     async function deleteTag(tagId) {
-      const tags    = activeSection === 'todo' ? allTodoTags : allNoteTags;
-      const tagsApi = activeSection === 'todo' ? TODO_TAGS_API : NOTE_TAGS_API;
+      const tags    = activeSection !== 'note' ? allTodoTags : allNoteTags;
+      const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
       const tag = tags.find(t => t.id === tagId);
       if (!confirm(`タグ「${tag?.name}」を削除しますか？`)) return;
       await fetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
-      if (activeSection === 'todo') {
+      if (activeSection !== 'note') {
         if (activeTodoTagId === tagId) activeTodoTagId = null;
         await Promise.all([fetchTodoTags(), fetchTodos()]);
       } else {
@@ -484,6 +520,7 @@
     }
 
     function deadlineDatePart(dl) { return dl ? dl.slice(0, 10) : null; }
+    function fmtDate(d) { return d ? d.slice(0, 10).replace(/-/g, '/') : ''; }
 
     function groupByDeadline(todos) {
       const map = new Map();
@@ -500,9 +537,100 @@
     function groupLabel(key) {
       if (key === '__done__') return { text: '完了済み', cls: '' };
       if (key === '__none__') return { text: '期限なし', cls: '' };
-      if (key < today)        return { text: `${key}（期限切れ）`, cls: 'overdue' };
-      if (key === today)      return { text: `${key}（今日）`, cls: 'today' };
-      return { text: key, cls: '' };
+      if (key < today)        return { text: `${fmtDate(key)}（期限切れ）`, cls: 'overdue' };
+      if (key === today)      return { text: `${fmtDate(key)}（今日）`, cls: 'today' };
+      return { text: fmtDate(key), cls: '' };
+    }
+
+    const KANBAN_SORT_OPTS = [
+      { value: 'dl-asc',    label: '期限が近い順' },
+      { value: 'dl-desc',   label: '期限が遠い順' },
+      { value: 'title-asc', label: 'タイトル順'   },
+    ];
+
+    function kanbanSortFn(order) {
+      return (a, b) => {
+        if (order === 'dl-asc') {
+          const da = a.deadline ?? '9999-99-99', db = b.deadline ?? '9999-99-99';
+          return da < db ? -1 : da > db ? 1 : 0;
+        }
+        if (order === 'dl-desc') {
+          const da = a.deadline ?? '', db = b.deadline ?? '';
+          return da > db ? -1 : da < db ? 1 : 0;
+        }
+        return a.title.localeCompare(b.title, 'ja');
+      };
+    }
+
+    function renderKanban() {
+      ['todo', 'doing', 'done'].forEach(s => {
+        const sel = document.getElementById(`k-sort-${s}`);
+        if (!sel.options.length) {
+          KANBAN_SORT_OPTS.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value; opt.textContent = o.label;
+            sel.appendChild(opt);
+          });
+        }
+      });
+
+      const filtered = allTodos.filter(t =>
+        !t.recurrence &&
+        (activeTodoTagId === null || t.tags.some(tg => tg.id === activeTodoTagId))
+      );
+      const cols = { todo: [], doing: [], done: [] };
+      filtered.forEach(t => {
+        const s = t.status || (t.done ? 'done' : 'todo');
+        (cols[s] || cols.todo).push(t);
+      });
+      ['todo', 'doing', 'done'].forEach(s => {
+        const order = document.getElementById(`k-sort-${s}`).value;
+        cols[s].sort(kanbanSortFn(order));
+      });
+
+      ['todo', 'doing', 'done'].forEach(status => {
+        const container = document.getElementById(`k-${status}`);
+        document.getElementById(`k-count-${status}`).textContent = cols[status].length;
+        container.innerHTML = '';
+        cols[status].forEach(t => {
+          const memo = t.memo ? (t.memo.length > 60 ? t.memo.slice(0, 60) + '…' : t.memo) : '';
+          const dl = fmtDate(t.deadline);
+          const isOverdue = t.deadline && t.deadline < now && status !== 'done';
+          const isToday   = deadlineDatePart(t.deadline) === today && status !== 'done';
+          const dlCls = isOverdue ? 'kanban-dl-overdue' : isToday ? 'kanban-dl-today' : 'kanban-dl-future';
+          const tagPills = t.tags.map(tg =>
+            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff">${escHtml(tg.name)}</span>`
+          ).join('');
+          const urlBtns = (t.urls || []).map(u =>
+            `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`
+          ).join('');
+
+          const card = document.createElement('div');
+          const cardCls = ['kanban-card',
+            t.id === selectedTodoId ? 'selected' : '',
+            isOverdue ? 'overdue' : '',
+            isToday   ? 'today'   : '',
+          ].filter(Boolean).join(' ');
+          card.className = cardCls;
+          card.innerHTML = `
+            <div class="kanban-card-title-row">
+              <span class="kanban-card-title">${escHtml(t.title)}</span>
+              ${dl ? `<span class="kanban-card-deadline ${dlCls}">${escHtml(dl)}</span>` : ''}
+            </div>
+            ${memo ? `<div class="kanban-card-memo">${escHtml(memo)}</div>` : ''}
+            ${tagPills ? `<div class="card-tags" style="margin-top:6px">${tagPills}</div>` : ''}
+            <div class="kanban-card-footer">
+              <div>${urlBtns}</div>
+              <div class="kanban-move-btns">
+                ${status !== 'todo' ? `<button class="btn-kmove" title="戻す" onclick="event.stopPropagation();setStatusById(${t.id},'${status==='doing'?'todo':'doing'}')">◀</button>` : ''}
+                ${status !== 'done' ? `<button class="btn-kmove" title="進める" onclick="event.stopPropagation();setStatusById(${t.id},'${status==='todo'?'doing':'done'}')">▶</button>` : ''}
+              </div>
+            </div>
+          `;
+          card.addEventListener('click', () => selectTodo(t.id));
+          container.appendChild(card);
+        });
+      });
     }
 
     function render(todos) {
@@ -530,8 +658,10 @@
         items.forEach(t => {
           const isOverdue = t.deadline && t.deadline < now  && !t.done;
           const isToday   = deadlineDatePart(t.deadline) === today && !t.done;
+          const status = t.status || (t.done ? 'done' : 'todo');
           const cardCls = ['todo-card',
-            t.done    ? 'done'    : '',
+            status === 'done'  ? 'done'    : '',
+            status === 'doing' ? 'doing'   : '',
             isOverdue ? 'overdue' : '',
             isToday   ? 'today'   : '',
             t.id === selectedTodoId ? 'selected' : '',
@@ -549,7 +679,7 @@
           const card = document.createElement('div');
           card.className = cardCls;
           card.innerHTML = `
-            <div class="check ${t.done ? 'checked' : ''}" onclick="event.stopPropagation(); toggleById(${t.id})"></div>
+            <div class="check ${status === 'done' ? 'checked' : status === 'doing' ? 'doing' : ''}" onclick="event.stopPropagation(); toggleById(${t.id})"></div>
             <div class="card-info">
               <div class="card-title">${escHtml(t.title)}</div>
               ${t.memo ? `<div class="card-memo">${escHtml(t.memo)}</div>` : ''}
@@ -563,6 +693,7 @@
           list.appendChild(card);
         });
       });
+      if (activeSection === 'kanban') renderKanban();
     }
 
     // ── サイドバー ──────────────────────────────
@@ -587,10 +718,9 @@
     function getRecurrenceValue() {
       const type = document.getElementById('sb-recurrence').value;
       if (!type) return null;
-      const end   = document.getElementById('sb-recurrence-end').value || null;
       const days  = [...document.querySelectorAll('.recurrence-day-btn.on')].map(b => +b.dataset.day);
       const dates = [...document.querySelectorAll('.recurrence-date-btn.on')].map(b => +b.dataset.date);
-      return JSON.stringify({ type, days, dates, end });
+      return JSON.stringify({ type, days, dates });
     }
 
     function updateRecurrenceUI(type, days, dates, end) {
@@ -602,7 +732,6 @@
         b.classList.toggle('on', (days || []).includes(+b.dataset.day)));
       document.querySelectorAll('.recurrence-date-btn').forEach(b =>
         b.classList.toggle('on', (dates || []).includes(+b.dataset.date)));
-      document.getElementById('sb-recurrence-end').value = end || '';
     }
 
     function updateSidebar(t, isNew) {
@@ -622,10 +751,11 @@
       updateUrlAddBtn();
       document.getElementById('sb-memo').value       = t.memo ?? '';
       document.getElementById('sb-heading').textContent = 'タスク詳細';
-      document.getElementById('sb-done-btn').style.display    = '';
+      document.getElementById('sb-status-field').style.display = '';
       document.getElementById('sb-del-btn').style.display     = '';
       document.getElementById('sb-discard-btn').style.display = 'none';
-      document.getElementById('sb-done-btn').textContent = t.done ? '未完了に戻す' : '完了にする';
+      const currentStatus = t.status || (t.done ? 'done' : 'todo');
+      document.querySelector(`input[name="sb-status"][value="${currentStatus}"]`).checked = true;
       sidebarTagIds = (t.tags ?? []).map(tg => tg.id);
       renderSidebarSelectedTags();
       document.getElementById('sidebar').classList.add('open');
@@ -686,7 +816,22 @@
 
     async function toggleSelected() {
       if (selectedTodoId === null) return;
-      await fetch(`${TODO_API}/${selectedTodoId}/toggle`, { method: 'PATCH' });
+      const t = allTodos.find(t => t.id === selectedTodoId);
+      const status = t?.status || (t?.done ? 'done' : 'todo');
+      await setStatusById(selectedTodoId, status === 'done' ? 'todo' : 'done');
+    }
+
+    async function setStatusSelected(status) {
+      if (selectedTodoId === null) return;
+      await setStatusById(selectedTodoId, status);
+    }
+
+    async function setStatusById(id, status) {
+      await fetch(`${TODO_API}/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
       fetchTodos();
     }
 
@@ -699,8 +844,9 @@
     }
 
     async function toggleById(id) {
-      await fetch(`${TODO_API}/${id}/toggle`, { method: 'PATCH' });
-      fetchTodos();
+      const t = allTodos.find(t => t.id === id);
+      const status = t?.status || (t?.done ? 'done' : 'todo');
+      await setStatusById(id, status === 'done' ? 'todo' : 'done');
     }
 
     async function delById(id) {
@@ -1111,19 +1257,20 @@
     const newTagColorBtn = document.getElementById('newTagColorBtn');
     newTagColorBtn.style.background = todoSelectedColor;
     newTagColorBtn.addEventListener('click', () => {
-      const current = activeSection === 'todo' ? todoSelectedColor : noteSelectedColor;
+      const current = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
       openSwatchPopup(newTagColorBtn, 5, TAG_PRESET_COLORS, current, color => {
-        if (activeSection === 'todo') todoSelectedColor = color;
+        if (activeSection !== 'note') todoSelectedColor = color;
         else noteSelectedColor = color;
         newTagColorBtn.style.background = color;
       });
     });
 
     document.addEventListener('click', e => {
-      if (activeSection !== 'todo') return;
+      if (activeSection === 'note') return;
       if (!selectedTodoId && !isNewMode) return;
       if (
         e.target.closest('.todo-card') ||
+        e.target.closest('.kanban-card') ||
         e.target.closest('.sidebar') ||
         e.target.closest('.tag-nav') ||
         e.target.closest('.form-card') ||
@@ -1170,11 +1317,9 @@
 
     document.getElementById('sb-recurrence').addEventListener('change', () => {
       const type = document.getElementById('sb-recurrence').value;
-      const end  = document.getElementById('sb-recurrence-end').value;
-      updateRecurrenceUI(type, [], [], end);
+      updateRecurrenceUI(type, [], [], null);
       scheduleAutoSave();
     });
-    document.getElementById('sb-recurrence-end').addEventListener('input', scheduleAutoSave);
 
     ['sb-title','sb-memo','sb-deadline-date','sb-deadline-time'].forEach(id => {
       document.getElementById(id).addEventListener('input', scheduleAutoSave);
@@ -1188,14 +1333,14 @@
       now = new Date().toISOString().slice(0, 16);
       if (newDate !== today) {
         today = newDate;
-        if (activeSection === 'todo') fetchTodos();
-      } else if (activeSection === 'todo') {
+        if (activeSection !== 'note') fetchTodos();
+      } else if (activeSection !== 'note') {
         render(allTodos);
       }
     }, 60000);
 
     // 初期ロード（URLハッシュでセクション決定）
-    switchSection(location.hash === '#note' ? 'note' : 'todo');
+    switchSection(location.hash === '#note' ? 'note' : location.hash === '#kanban' ? 'kanban' : 'todo');
   </script>
 </body>
 </html>

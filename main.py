@@ -35,6 +35,9 @@ class NoteUpdate(BaseModel):
 class NoteReorder(BaseModel):
     ids: list[int]
 
+class StatusUpdate(BaseModel):
+    status: str  # 'todo' | 'doing' | 'done'
+
 class TagCreate(BaseModel):
     name: str
     color: str = "#93c5fd"
@@ -55,6 +58,15 @@ def create_todo(body: TodoCreate):
 @router.patch("/api/todos/{todo_id}/toggle")
 def toggle_todo(todo_id: int):
     todo = database.toggle_todo(todo_id)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return todo
+
+@router.patch("/api/todos/{todo_id}/status")
+def set_todo_status(todo_id: int, body: StatusUpdate):
+    if body.status not in ('todo', 'doing', 'done'):
+        raise HTTPException(status_code=400, detail="Invalid status")
+    todo = database.set_todo_status(todo_id, body.status)
     if todo is None:
         raise HTTPException(status_code=404, detail="Not found")
     return todo
