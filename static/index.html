@@ -159,6 +159,32 @@
   </div>
 
   <script>
+    function showToast(msg) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.classList.add('toast-show'), 10);
+      setTimeout(() => { el.classList.remove('toast-show'); setTimeout(() => el.remove(), 300); }, 3500);
+    }
+
+    async function apiFetch(url, opts) {
+      let res;
+      try {
+        res = await window.fetch(url, opts);
+      } catch {
+        showToast('ネットワークエラーが発生しました');
+        throw new Error('network');
+      }
+      if (!res.ok) {
+        showToast(`エラーが発生しました（${res.status}）`);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return res;
+    }
+
+    window.addEventListener('unhandledrejection', e => { e.preventDefault(); });
+
     const BASE          = '/fuyuco';
     const TODO_API      = BASE + '/api/todos';
     const NOTE_API      = BASE + '/api/notes';
@@ -332,7 +358,7 @@
         dot.addEventListener('click', e => {
           e.stopPropagation();
           openSwatchPopup(dot, 5, TAG_PRESET_COLORS, tag.color, async color => {
-            await fetch(`${tagsApi}/${tag.id}/color`, {
+            await apiFetch(`${tagsApi}/${tag.id}/color`, {
               method: 'PATCH', headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({ color }),
             });
@@ -368,7 +394,7 @@
       if (!name) return;
       const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
       const color   = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
-      await fetch(tagsApi, {
+      await apiFetch(tagsApi, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ name, color }),
       });
@@ -382,7 +408,7 @@
       const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
       const tag = tags.find(t => t.id === tagId);
       if (!confirm(`タグ「${tag?.name}」を削除しますか？`)) return;
-      await fetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
+      await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
       if (activeSection !== 'note') {
         if (activeTodoTagId === tagId) activeTodoTagId = null;
         await Promise.all([fetchTodoTags(), fetchTodos()]);
@@ -394,9 +420,11 @@
 
     // ── TODO タグ ───────────────────────────────
     async function fetchTodoTags() {
-      const res = await fetch(TODO_TAGS_API);
-      allTodoTags = await res.json();
-      renderTagNav();
+      try {
+        const res = await apiFetch(TODO_TAGS_API);
+        allTodoTags = await res.json();
+        renderTagNav();
+      } catch {}
     }
 
     let sidebarTagIds = [];
@@ -494,15 +522,17 @@
 
     // ── TODO CRUD ───────────────────────────────
     async function fetchTodos() {
-      const url = activeTodoTagId !== null ? `${TODO_API}?tag_id=${activeTodoTagId}` : TODO_API;
-      const res = await fetch(url);
-      allTodos = await res.json();
-      render(allTodos);
-      renderTagNav();
-      if (selectedTodoId !== null) {
-        const t = allTodos.find(t => t.id === selectedTodoId);
-        if (t) updateSidebar(t, false); else closeSidebar();
-      }
+      try {
+        const url = activeTodoTagId !== null ? `${TODO_API}?tag_id=${activeTodoTagId}` : TODO_API;
+        const res = await apiFetch(url);
+        allTodos = await res.json();
+        render(allTodos);
+        renderTagNav();
+        if (selectedTodoId !== null) {
+          const t = allTodos.find(t => t.id === selectedTodoId);
+          if (t) updateSidebar(t, false); else closeSidebar();
+        }
+      } catch {}
     }
 
     function toggleSort() {
@@ -776,7 +806,7 @@
 
     async function openNewTodo() {
       const title = document.getElementById('titleInput').value.trim() || '（無題）';
-      const res = await fetch(TODO_API, {
+      const res = await apiFetch(TODO_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, deadline: null }),
       });
@@ -805,7 +835,7 @@
       const tag_ids    = getSidebarCheckedTagIds();
 
       if (selectedTodoId === null) return;
-      await fetch(`${TODO_API}/${selectedTodoId}`, {
+      await apiFetch(`${TODO_API}/${selectedTodoId}`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ title, deadline, urls, memo, tag_ids, recurrence }),
       });
@@ -827,7 +857,7 @@
     }
 
     async function setStatusById(id, status) {
-      await fetch(`${TODO_API}/${id}/status`, {
+      await apiFetch(`${TODO_API}/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -853,27 +883,31 @@
       const t = allTodos.find(t => t.id === id);
       if (!confirm(`タスク「${t?.title}」を削除しますか？`)) return;
       if (selectedTodoId === id) { selectedTodoId = null; document.getElementById('sidebar').classList.remove('open'); }
-      await fetch(`${TODO_API}/${id}`, { method: 'DELETE' });
+      await apiFetch(`${TODO_API}/${id}`, { method: 'DELETE' });
       fetchTodos();
     }
 
     // ── Note タグ ───────────────────────────────
     async function fetchNoteTags() {
-      const res = await fetch(NOTE_TAGS_API);
-      allNoteTags = await res.json();
-      renderTagNav();
+      try {
+        const res = await apiFetch(NOTE_TAGS_API);
+        allNoteTags = await res.json();
+        renderTagNav();
+      } catch {}
     }
 
     // ── Note CRUD ───────────────────────────────
     async function fetchNotes() {
-      let url;
-      if (activeNoteTagId === 'archived')       url = `${NOTE_API}?archived=true`;
-      else if (activeNoteTagId !== null)         url = `${NOTE_API}?tag_id=${activeNoteTagId}`;
-      else                                       url = NOTE_API;
-      const res = await fetch(url);
-      allNotes = await res.json();
-      renderNotes();
-      renderTagNav();
+      try {
+        let url;
+        if (activeNoteTagId === 'archived')       url = `${NOTE_API}?archived=true`;
+        else if (activeNoteTagId !== null)         url = `${NOTE_API}?tag_id=${activeNoteTagId}`;
+        else                                       url = NOTE_API;
+        const res = await apiFetch(url);
+        allNotes = await res.json();
+        renderNotes();
+        renderTagNav();
+      } catch {}
     }
 
     function renderNotes() {
@@ -1047,7 +1081,7 @@
         e.stopPropagation();
         if (!confirm('このメモを削除しますか？')) return;
         clearTimeout(noteSaveTimers[note.id]);
-        await fetch(`${NOTE_API}/${note.id}`, { method: 'DELETE' });
+        await apiFetch(`${NOTE_API}/${note.id}`, { method: 'DELETE' });
         fetchNotes();
       });
 
@@ -1058,7 +1092,7 @@
       archBtn.addEventListener('click', async e => {
         e.stopPropagation();
         clearTimeout(noteSaveTimers[note.id]);
-        await fetch(`${NOTE_API}/${note.id}/archive`, { method: 'PATCH' });
+        await apiFetch(`${NOTE_API}/${note.id}/archive`, { method: 'PATCH' });
         fetchNotes();
       });
 
@@ -1112,7 +1146,7 @@
         if (fromIdx < toIdx) toEl.after(fromEl);
         else toEl.before(fromEl);
         const newOrder = [...grid.querySelectorAll('.note-card')].map(c => parseInt(c.dataset.id, 10));
-        await fetch(`${NOTE_API}/reorder`, {
+        await apiFetch(`${NOTE_API}/reorder`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids: newOrder }),
@@ -1158,7 +1192,7 @@
       clearTimeout(noteSaveTimers[noteId]);
       const data = getNoteCardData(noteId);
       if (!data) return;
-      const res = await fetch(`${NOTE_API}/${noteId}`, {
+      const res = await apiFetch(`${NOTE_API}/${noteId}`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data),
       });
@@ -1173,7 +1207,7 @@
     }
 
     async function createNote() {
-      const note = await (await fetch(NOTE_API, {
+      const note = await (await apiFetch(NOTE_API, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ title: '', body: '', color: '#ffffff' }),
       })).json();
@@ -1284,7 +1318,7 @@
       if (e.key !== 'Enter') return;
       const title = document.getElementById('titleInput').value.trim();
       if (!title) return;
-      const res = await fetch(TODO_API, {
+      const res = await apiFetch(TODO_API, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ title, deadline: null }),
       });

@@ -24,16 +24,16 @@ def init_db():
         """)
         try:
             conn.execute("ALTER TABLE todos ADD COLUMN recurrence TEXT")
-        except Exception:
+        except sqlite3.OperationalError:
             pass
         try:
             conn.execute("ALTER TABLE todos ADD COLUMN recurrence_id INTEGER")
-        except Exception:
+        except sqlite3.OperationalError:
             pass
         try:
             conn.execute("ALTER TABLE todos ADD COLUMN status TEXT NOT NULL DEFAULT 'todo'")
             conn.execute("UPDATE todos SET status = 'done' WHERE done = 1 AND status = 'todo'")
-        except Exception:
+        except sqlite3.OperationalError:
             pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_tags (
@@ -62,11 +62,11 @@ def init_db():
         """)
         try:
             conn.execute("ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
-        except Exception:
+        except sqlite3.OperationalError:
             pass
         try:
             conn.execute("ALTER TABLE notes ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
-        except Exception:
+        except sqlite3.OperationalError:
             pass
         count     = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
         zero_cnt  = conn.execute("SELECT COUNT(*) FROM notes WHERE position = 0").fetchone()[0]
