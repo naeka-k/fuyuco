@@ -1,4 +1,4 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+﻿*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px);
@@ -56,7 +56,7 @@ body {
 .tag-item.active { background: #dceeff; color: #2b7de9; font-weight: bold; }
 .tag-dot { width: 8px; height: 8px; border-radius: 50%; background: #cce5fd; flex-shrink: 0; }
 .tag-item.active .tag-dot { background: #3d82f0; }
-.tag-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 12em; }
 .tag-count { font-size: .75rem; color: #a8cffb; flex-shrink: 0; }
 .tag-item.active .tag-count { color: #3d82f0; }
 .tag-del {
@@ -171,6 +171,7 @@ body {
 .card-tag-pill {
   font-size: .7rem; padding: 1px 6px; border-radius: 10px;
   background: #dceeff; color: #2b7de9; white-space: nowrap;
+  max-width: 12em; overflow: hidden; text-overflow: ellipsis; display: inline-block;
 }
 
 .btn-url {
@@ -274,7 +275,7 @@ body {
 .tag-checkbox-item input[type="checkbox"] { cursor: pointer; accent-color: #3d82f0; }
 
 .sb-tag-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 32px; }
-.sb-selected-tags { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.sb-selected-tags { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; max-height: 72px; overflow-y: auto; }
 .sb-url-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
 .sb-url-row input { flex: 1; }
 .sb-url-del { flex-shrink: 0; border: none; background: none; cursor: pointer; color: #a3a3a3; font-size: .8rem; padding: 2px 5px; border-radius: 4px; line-height: 1; }
@@ -361,6 +362,7 @@ body {
 .note-tag-pill {
   font-size: .7rem; padding: 1px 7px; border-radius: 10px;
   color: #fff; white-space: nowrap;
+  max-width: 12em; overflow: hidden; text-overflow: ellipsis; display: inline-block;
 }
 
 .note-footer {
@@ -384,12 +386,16 @@ body {
   position: fixed; background: #fff; border-radius: 12px;
   box-shadow: 0 4px 20px #00000022; padding: 10px 12px; z-index: 1000;
   display: flex; flex-direction: column; gap: 6px; min-width: 150px;
+  max-height: 260px; overflow-y: auto;
 }
 .tag-popup-item {
   display: flex; align-items: center; gap: 8px;
   font-size: .88rem; color: #444; cursor: pointer;
 }
 .tag-popup-item input[type="checkbox"] { cursor: pointer; accent-color: #3d82f0; }
+.tag-popup-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 12em;
+}
 
 /* ── カンバン ── */
 .kanban {
@@ -493,3 +499,5 @@ body {
 .status-radio-label input[type="radio"] {
   accent-color: #3d82f0; cursor: pointer; width: 15px; height: 15px;
 }
+
+

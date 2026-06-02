@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -142,8 +142,8 @@
         <div class="field">
           <label>タグ</label>
           <div class="sb-tag-row">
-            <div id="sb-selected-tags" class="sb-selected-tags"></div>
             <button type="button" id="sb-tag-btn" class="note-btn" title="タグを選択">🏷</button>
+            <div id="sb-selected-tags" class="sb-selected-tags"></div>
           </div>
         </div>
         <div class="field">
@@ -301,9 +301,13 @@
         cb.addEventListener('change', () => scheduleNoteSave(noteId));
         const dot = document.createElement('span');
         dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${tag.color};flex-shrink:0;display:inline-block`;
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'tag-popup-name';
+        nameSpan.title = tag.name;
+        nameSpan.textContent = tag.name;
         label.appendChild(cb);
         label.appendChild(dot);
-        label.appendChild(document.createTextNode(' ' + tag.name));
+        label.appendChild(nameSpan);
         popup.appendChild(label);
       });
       document.body.appendChild(popup);
@@ -369,7 +373,7 @@
 
         li.appendChild(dot);
         li.insertAdjacentHTML('beforeend', `
-          <span class="tag-item-name">${escHtml(tag.name)}</span>
+          <span class="tag-item-name" title="${escHtml(tag.name)}">${escHtml(tag.name)}</span>
           <span class="tag-count">${count}</span>
           <button class="tag-del" onclick="event.stopPropagation(); deleteTag(${tag.id})">✕</button>
         `);
@@ -436,6 +440,7 @@
         const pill = document.createElement('span');
         pill.className = 'card-tag-pill';
         pill.style.background = tag.color;
+        pill.title = tag.name;
         pill.textContent = tag.name;
         container.appendChild(pill);
       });
@@ -464,9 +469,13 @@
         });
         const dot = document.createElement('span');
         dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${tag.color};flex-shrink:0;display:inline-block`;
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'tag-popup-name';
+        nameSpan.title = tag.name;
+        nameSpan.textContent = tag.name;
         label.appendChild(cb);
         label.appendChild(dot);
-        label.appendChild(document.createTextNode(' ' + tag.name));
+        label.appendChild(nameSpan);
         popup.appendChild(label);
       });
       document.body.appendChild(popup);
@@ -629,7 +638,7 @@
           const isToday   = deadlineDatePart(t.deadline) === today && status !== 'done';
           const dlCls = isOverdue ? 'kanban-dl-overdue' : isToday ? 'kanban-dl-today' : 'kanban-dl-future';
           const tagPills = t.tags.map(tg =>
-            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff">${escHtml(tg.name)}</span>`
+            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(tg.name)}</span>`
           ).join('');
           const urlBtns = (t.urls || []).map(u =>
             `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`
@@ -698,7 +707,7 @@
           ].filter(Boolean).join(' ');
 
           const tagPills = t.tags.map(tg =>
-            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff">${escHtml(tg.name)}</span>`
+            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(tg.name)}</span>`
           ).join('');
 
           const recLabelMap = { daily: '毎日', weekly: '毎週', monthly: '毎月' };
@@ -1163,6 +1172,7 @@
         const pill = document.createElement('span');
         pill.className = 'note-tag-pill';
         pill.style.background = tag.color;
+        pill.title = tag.name;
         pill.textContent = tag.name;
         container.appendChild(pill);
       });
@@ -1378,3 +1388,5 @@
   </script>
 </body>
 </html>
+
+
