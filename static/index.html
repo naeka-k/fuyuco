@@ -733,6 +733,11 @@
             <button class="btn-del" onclick="event.stopPropagation(); delById(${t.id})">✕</button>
           `;
           card.addEventListener('click', () => selectTodo(t.id));
+          card.querySelector('.card-title').addEventListener('click', e => {
+            if (t.id !== selectedTodoId) return;
+            e.stopPropagation();
+            startInlineEdit(e.currentTarget, t);
+          });
           list.appendChild(card);
         });
       });
@@ -746,6 +751,42 @@
       const t = allTodos.find(t => t.id === id);
       updateSidebar(t, false);
       render(allTodos);
+    }
+
+    function startInlineEdit(titleEl, t) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = t.title;
+      input.className = 'card-title-edit';
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+      input.addEventListener('click', e => e.stopPropagation());
+      let done = false;
+      async function save() {
+        if (done) return;
+        done = true;
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== t.title) {
+          try {
+            const res = await apiFetch(`/fuyuco/api/todos/${t.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: newTitle, deadline: t.deadline, memo: t.memo, urls: t.urls || [], tag_ids: t.tags.map(tg => tg.id), recurrence: t.recurrence })
+            });
+            const updated = await res.json();
+            const idx = allTodos.findIndex(x => x.id === t.id);
+            if (idx !== -1) allTodos[idx] = updated;
+            if (selectedTodoId === t.id) updateSidebar(updated, false);
+          } catch {}
+        }
+        render(allTodos);
+      }
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { done = true; render(allTodos); }
+      });
     }
 
     function parseRecurrence(rec) {

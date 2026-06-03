@@ -518,3 +518,9 @@ body {
 .kanban-cards::-webkit-scrollbar-thumb:hover,
 .sidebar-body::-webkit-scrollbar-thumb:hover,
 #note-section::-webkit-scrollbar-thumb:hover { background: #c8c8c8; }
+.card-title-edit {
+  font-size: .93rem; color: #444; width: 100%;
+  border: none; border-bottom: 1.5px solid #3d82f0;
+  outline: none; background: transparent;
+  padding: 0; margin: 0; font-family: inherit; line-height: inherit;
+}
