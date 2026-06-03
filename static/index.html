@@ -82,7 +82,7 @@
     <!-- タスク詳細サイドバー -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <span id="sb-heading">タスク詳細</span>
+        <span id="sb-heading"></span>
         <button class="btn-close" onclick="closeSidebar()">✕</button>
       </div>
       <div class="sidebar-body">
@@ -185,13 +185,17 @@
 
     window.addEventListener('unhandledrejection', e => { e.preventDefault(); });
 
+    function nowJST() {
+      return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('Z', '');
+    }
+
     const BASE          = '/fuyuco';
     const TODO_API      = BASE + '/api/todos';
     const NOTE_API      = BASE + '/api/notes';
     const TODO_TAGS_API = BASE + '/api/todo-tags';
     const NOTE_TAGS_API = BASE + '/api/note-tags';
-    let today = new Date().toISOString().slice(0, 10);
-    let now   = new Date().toISOString().slice(0, 16);
+    let today = nowJST().slice(0, 10);
+    let now   = nowJST().slice(0, 16);
 
     const TEXT_COLORS = [
       '#000000','#ef4444','#f97316','#eab308','#22c55e',
@@ -304,7 +308,7 @@
         const nameSpan = document.createElement('span');
         nameSpan.className = 'tag-popup-name';
         nameSpan.title = tag.name;
-        nameSpan.textContent = tag.name;
+        nameSpan.textContent = truncTag(tag.name);
         label.appendChild(cb);
         label.appendChild(dot);
         label.appendChild(nameSpan);
@@ -373,7 +377,7 @@
 
         li.appendChild(dot);
         li.insertAdjacentHTML('beforeend', `
-          <span class="tag-item-name" title="${escHtml(tag.name)}">${escHtml(tag.name)}</span>
+          <span class="tag-item-name" title="${escHtml(tag.name)}">${escHtml(truncTag(tag.name))}</span>
           <span class="tag-count">${count}</span>
           <button class="tag-del" onclick="event.stopPropagation(); deleteTag(${tag.id})">✕</button>
         `);
@@ -441,7 +445,7 @@
         pill.className = 'card-tag-pill';
         pill.style.background = tag.color;
         pill.title = tag.name;
-        pill.textContent = tag.name;
+        pill.textContent = truncTag(tag.name);
         container.appendChild(pill);
       });
     }
@@ -472,7 +476,7 @@
         const nameSpan = document.createElement('span');
         nameSpan.className = 'tag-popup-name';
         nameSpan.title = tag.name;
-        nameSpan.textContent = tag.name;
+        nameSpan.textContent = truncTag(tag.name);
         label.appendChild(cb);
         label.appendChild(dot);
         label.appendChild(nameSpan);
@@ -638,7 +642,7 @@
           const isToday   = deadlineDatePart(t.deadline) === today && status !== 'done';
           const dlCls = isOverdue ? 'kanban-dl-overdue' : isToday ? 'kanban-dl-today' : 'kanban-dl-future';
           const tagPills = t.tags.map(tg =>
-            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(tg.name)}</span>`
+            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(truncTag(tg.name))}</span>`
           ).join('');
           const urlBtns = (t.urls || []).map(u =>
             `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`
@@ -707,7 +711,7 @@
           ].filter(Boolean).join(' ');
 
           const tagPills = t.tags.map(tg =>
-            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(tg.name)}</span>`
+            `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(truncTag(tg.name))}</span>`
           ).join('');
 
           const recLabelMap = { daily: '毎日', weekly: '毎週', monthly: '毎月' };
@@ -789,7 +793,7 @@
       (t.urls || []).forEach(u => addUrlInput(u));
       updateUrlAddBtn();
       document.getElementById('sb-memo').value       = t.memo ?? '';
-      document.getElementById('sb-heading').textContent = 'タスク詳細';
+      document.getElementById('sb-heading').textContent = '';
       document.getElementById('sb-status-field').style.display = '';
       document.getElementById('sb-del-btn').style.display     = '';
       document.getElementById('sb-discard-btn').style.display = 'none';
@@ -1173,7 +1177,7 @@
         pill.className = 'note-tag-pill';
         pill.style.background = tag.color;
         pill.title = tag.name;
-        pill.textContent = tag.name;
+        pill.textContent = truncTag(tag.name);
         container.appendChild(pill);
       });
     }
@@ -1245,6 +1249,9 @@
 
     function escHtml(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function truncTag(name) {
+      return name.length > 20 ? name.slice(0, 19) + '…' : name;
     }
 
     function linkifyDom(node) {
@@ -1373,8 +1380,8 @@
 
     // 日付変更検知（日付が変わったらTODOを再取得して繰り返しタスクを生成）
     setInterval(() => {
-      const newDate = new Date().toISOString().slice(0, 10);
-      now = new Date().toISOString().slice(0, 16);
+      const newDate = nowJST().slice(0, 10);
+      now = nowJST().slice(0, 16);
       if (newDate !== today) {
         today = newDate;
         if (activeSection !== 'note') fetchTodos();
@@ -1388,5 +1395,6 @@
   </script>
 </body>
 </html>
+
 
 
