@@ -1,4 +1,4 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+﻿*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px);
@@ -10,7 +10,7 @@
 body {
   font-family: 'Segoe UI', sans-serif; background: #ffffff;
   min-height: 100vh; display: flex; flex-direction: column;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 /* ── タブバー ── */
