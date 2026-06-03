@@ -81,10 +81,6 @@
 
     <!-- タスク詳細サイドバー -->
     <div class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <span id="sb-heading"></span>
-        <button class="btn-close" onclick="closeSidebar()">✕</button>
-      </div>
       <div class="sidebar-body">
         <div class="field">
           <label>タイトル</label>
@@ -168,10 +164,8 @@
         </div>
         <div class="field">
           <label>タグ</label>
-          <div class="sb-tag-row">
-            <button type="button" id="sb-tag-btn" class="note-btn" title="タグを選択">🏷</button>
-            <div id="sb-selected-tags" class="sb-selected-tags"></div>
-          </div>
+          <div id="sb-selected-tags" class="sb-selected-tags"></div>
+          <button type="button" id="sb-tag-btn" class="btn-url-add">＋ タグを追加</button>
         </div>
         <div class="field">
           <label>メモ</label>
@@ -471,6 +465,7 @@
         const pill = document.createElement('span');
         pill.className = 'card-tag-pill';
         pill.style.background = tag.color;
+        pill.style.color = '#fff';
         pill.title = tag.name;
         pill.textContent = truncTag(tag.name);
         container.appendChild(pill);
@@ -861,7 +856,6 @@
       (t.urls || []).forEach(u => addUrlInput(u));
       updateUrlAddBtn();
       document.getElementById('sb-memo').value       = t.memo ?? '';
-      document.getElementById('sb-heading').textContent = '';
       document.getElementById('sb-status-field').style.display = '';
       document.getElementById('sb-del-btn').style.display     = '';
       document.getElementById('sb-discard-btn').style.display = 'none';

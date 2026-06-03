@@ -208,7 +208,7 @@ body {
 }
 .btn-close:hover { color: #7d7d7d; }
 
-.sidebar-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; min-height: 0; }
+.sidebar-body { padding: 16px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; min-height: 0; }
 
 .field label { display: block; font-size: .84rem; color: #488de7; margin-bottom: 4px; font-weight: bold; }
 .field input[type="text"],
@@ -275,7 +275,7 @@ body {
 .tag-checkbox-item input[type="checkbox"] { cursor: pointer; accent-color: #3d82f0; }
 
 .sb-tag-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 32px; }
-.sb-selected-tags { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; max-height: 72px; overflow-y: auto; }
+.sb-selected-tags { display: flex; gap: 4px; flex-wrap: wrap; max-height: 72px; overflow-y: auto; margin-bottom: 4px; }
 .sb-url-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
 .sb-url-row input { flex: 1; }
 .sb-url-del { flex-shrink: 0; border: none; background: none; cursor: pointer; color: #a3a3a3; font-size: .8rem; padding: 2px 5px; border-radius: 4px; line-height: 1; }
