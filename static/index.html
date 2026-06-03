@@ -635,7 +635,7 @@
         const container = document.getElementById(`k-${status}`);
         document.getElementById(`k-count-${status}`).textContent = cols[status].length;
         container.innerHTML = '';
-        cols[status].forEach(t => {
+        cols[status].slice(0, 30).forEach(t => {
           const memo = t.memo ? (t.memo.length > 60 ? t.memo.slice(0, 60) + '…' : t.memo) : '';
           const dl = fmtDate(t.deadline);
           const isOverdue = t.deadline && t.deadline < now && status !== 'done';

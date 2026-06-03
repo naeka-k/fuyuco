@@ -424,8 +424,7 @@ body {
 }
 .kanban-col-doing .kanban-count { background: #d0e4ff; color: #3d82f0; }
 .kanban-cards {
-  display: flex; flex-direction: column; gap: 8px;
-  max-height: calc(100vh - 260px); overflow-y: auto; padding-bottom: 4px;
+  display: flex; flex-direction: column; gap: 8px; padding-bottom: 4px;
 }
 
 .kanban-card {
