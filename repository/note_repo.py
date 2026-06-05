@@ -1,7 +1,6 @@
-from .db_conn import get_note_conn
-from .tag_repo import create_tag, delete_tag, get_all_tags, update_tag_color
+from repository.db_conn import get_note_conn
+from repository.tag_repo import create_tag, delete_tag, get_all_tags, update_tag_color
 from service.utils import attach_tags
-
 
 
 def _attach_note_tags(conn, notes):
