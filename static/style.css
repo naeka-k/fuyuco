@@ -164,7 +164,7 @@ body {
 .card-title { font-size: .93rem; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .done .card-title { text-decoration: line-through; color: #909090; }
 .card-memo {
-  font-size: .76rem; color: #a8cffb; margin-top: 1px;
+  font-size: .76rem; color: #909090; margin-top: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
@@ -298,6 +298,7 @@ body {
   border: 1px solid #e38787; border-radius: 10px; font-size: .88rem; cursor: pointer;
 }
 .btn-sidebar-del:hover { background: #fff5f5; }
+#sb-memo { min-height: 120px; resize: vertical; }
 
 /* ── メモ ── */
 #note-section { display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; min-height: 0; }
