@@ -2,8 +2,21 @@ import calendar
 import json
 from datetime import date, timedelta
 
-
+'''
+繰り返し設定の解析と次の締め切りの計算を行う関数を提供するモジュール
+このモジュールでは、繰り返し設定を解析するparse_rec関数と、次の締め切りを計算するcalc_next_deadline関数を提供する。
+parse_rec関数は、繰り返し設定を辞書形式で返す。
+文字列が渡された場合はJSONとして解析し、失敗した場合は'type'キーの値として文字列を持つ辞書を返す。
+calc_next_deadline関数は、締め切りと繰り返し設定から次の締め切りを計算する。
+繰り返し設定のタイプに応じて、日次、週次、月次の計算を行う。
+calc_next_deadline関数は、締め切りが空の場合や、繰り返し設定の内容が不正な場合はNoneを返す。
+'''
 def parse_rec(rec):
+    '''
+    繰り返し設定を解析する関数
+    recが辞書の場合はそのまま返し、文字列の場合はJSONとして解析して返す。
+    解析に失敗した場合は、recを'type'キーの値として持つ辞書を返す。
+    '''
     if isinstance(rec, dict):
         return rec
     if rec is None:
@@ -15,6 +28,11 @@ def parse_rec(rec):
 
 
 def calc_next_deadline(dl_str, rec):
+    '''
+    次の締め切りを計算する関数
+    dl_strで指定された締め切りとrecで指定された繰り返し設定から、次の締め切りを計算して返す。
+    dl_strが空の場合や、recの内容が不正な場合はNoneを返す
+    '''
     rec = parse_rec(rec)
     if not dl_str:
         return None
