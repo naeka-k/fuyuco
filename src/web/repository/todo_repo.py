@@ -1,9 +1,13 @@
-from repository.db_conn import get_todo_conn
-from service.recurrence import calc_next_deadline, parse_rec
-from repository.tag_repo import create_tag, delete_tag, get_all_tags, update_tag_color
-from service.utils import attach_tags, parse_urls, urls_to_json
+'''
+TODO関連のデータベース操作を行うモジュール
+このモジュールは、TODOの作成、更新、削除、状態の切り替え、タグの管理など、TODOに関連するデータベース操作を行う関数を提供する。
+これらの関数は、get_todo_conn()を使用してTODOデータベースへの接続を取得し、必要なSQLクエリを実行してデータベース操作を行う。
+'''
+from .db_conn import get_todo_conn
+from .tag_repo import create_tag, delete_tag, get_all_tags, update_tag_color
+from ..service.recurrence import calc_next_deadline, parse_rec
+from ..service.utils import attach_tags, parse_urls, urls_to_json
 from datetime import date
-
 
 def generate_recurring_todos():
     '''定期TODOを生成する関数

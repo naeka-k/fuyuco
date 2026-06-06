@@ -1,11 +1,13 @@
-import sqlite3
-from .db_conn import get_note_conn, get_todo_conn
 '''
 データベースの初期化を行うモジュール
 このモジュールは、TODOデータベースとノートデータベースの両方を初期化するための関数を提供する。
 init_db()は、両方のデータベースに必要なテーブルを作成し、必要に応じてカラムを追加する。
-TODOデータベースにはtodos、todo_tags、todo_tag_linksの3つのテーブルが作成され、ノートデータベースにはnotes、note_tags、note_tag_linksの3つのテーブルが作成される。
+TODOデータベースにはtodos、todo_tags、todo_tag_linksの3つのテーブルが作成され、
+ノートデータベースにはnotes、note_tags、note_tag_linksの3つのテーブルが作成される。
 '''
+import sqlite3
+from .db_conn import get_note_conn, get_todo_conn
+
 def ensure_column(conn, table, column, definition):
     '''
     テーブルにカラムが存在することを確認する関数

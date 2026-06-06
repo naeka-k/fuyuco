@@ -1,12 +1,13 @@
-from repository.db_conn import get_note_conn
-from repository.tag_repo import create_tag, delete_tag, get_all_tags, update_tag_color
-from service.utils import attach_tags
-
 '''
 ノート関連のデータベース操作を行うモジュール
-このモジュールは、ノートの作成、更新、削除、アーカイブ状態の切り替え、タグの管理など、ノートに関連するデータベース操作を行う関数を提供する。これらの関数は、get_note_conn()を使用してノートデータベースへの接続を取得し、必要なSQLクエリを実行してデータベース操作を行う。
+このモジュールは、ノートの作成、更新、削除、アーカイブ状態の切り替え、タグの管理など、
+ノートに関連するデータベース操作を行う関数を提供する。
+これらの関数は、get_note_conn()を使用してノートデータベースへの接続を取得し、
+必要なSQLクエリを実行してデータベース操作を行う。
 '''
-
+from .db_conn import get_note_conn
+from .tag_repo import create_tag, delete_tag, get_all_tags, update_tag_color
+from ..service.utils import attach_tags
 
 def _attach_note_tags(conn, notes):
     '''

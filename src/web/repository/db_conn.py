@@ -1,14 +1,14 @@
+'''
+データベース接続を管理するモジュール
+このモジュールは、SQLiteデータベースへの接続を管理するための関数を提供する。
+get_todo_conn()とget_note_conn()は、それぞれTODOデータベースとノートデータベースへの接続を取得するための関数である。
+これらの関数は、get_conn()という共通のコンテキストマネージャ関数を使用して、データベース接続の確立とクリーンアップを管理する
+'''
 import sqlite3
 from contextlib import contextmanager
 
 TODO_DB = "todo.db"
 NOTE_DB = "memo.db"
-
-'''
-データベース接続を管理するモジュール
-このモジュールは、SQLiteデータベースへの接続を管理するための関数を提供する。
-get_todo_conn()とget_note_conn()は、それぞれTODOデータベースとノートデータベースへの接続を取得するための関数である。これらの関数は、get_conn()という共通のコンテキストマネージャ関数を使用して、データベース接続の確立とクリーンアップを管理する
-'''
 
 @contextmanager
 def get_conn(db_path: str):

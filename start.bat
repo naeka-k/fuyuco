@@ -1,2 +1,3 @@
 @echo off
-uvicorn main:app --reload --port 8001
+set PYTHONPATH=%PYTHONPATH%;src
+uvicorn web.main:app --reload --port 8001

@@ -1,6 +1,11 @@
+'''
+ノート関連のAPIエンドポイントを定義するモジュール
+このモジュールでは、ノートの作成、更新、削除、アーカイブ、タグの管理など、ノートに関連するAPIエンドポイントを定義している。
+各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
+'''
 from fastapi import APIRouter, HTTPException, Query
-from schemas import NoteCreate, NoteUpdate, NoteReorder, TagCreate, TagColorUpdate
-from repository import (
+from ..schemas import NoteCreate, NoteUpdate, NoteReorder, TagCreate, TagColorUpdate
+from ..repository import (
     get_all_notes,
     create_note,
     reorder_notes,
@@ -12,10 +17,8 @@ from repository import (
     update_note_tag_color,
     delete_note_tag,
 )
-'''ノート関連のAPIエンドポイントを定義するモジュール
-このモジュールでは、ノートの作成、更新、削除、アーカイブ、タグの管理など、ノートに関連するAPIエンドポイントを定義している。各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す'''
-router = APIRouter()
 
+router = APIRouter()
 
 @router.get("/api/notes")
 def list_notes(tag_id: int | None = Query(default=None),
@@ -111,7 +114,8 @@ def update_note_tag_color_endpoint(tag_id: int, body: TagColorUpdate):
     '''
     ノートタグの色を更新するエンドポイント
     tag_idで指定されたノートタグの色をbodyで更新する。
-    更新に成功した場合は更新されたノートタグを返し、ノートタグが見つからない場合は404 Not Foundを返す'''
+    更新に成功した場合は更新されたノートタグを返し、ノートタグが見つからない場合は404 Not Foundを返す
+    '''
     tag = update_note_tag_color(tag_id, body.color)
     if tag is None:
         raise HTTPException(status_code=404, detail="Not found")
@@ -123,6 +127,7 @@ def delete_note_tag_endpoint(tag_id: int):
     '''
     ノートタグを削除するエンドポイント
     tag_idで指定されたノートタグを削除する。
-    削除に成功した場合は204 No Contentを返し、ノートタグが見つからない場合は404 Not Foundを返す'''
+    削除に成功した場合は204 No Contentを返し、ノートタグが見つからない場合は404 Not Foundを返す
+    '''
     if not delete_note_tag(tag_id):
         raise HTTPException(status_code=404, detail="Not found")

@@ -1,7 +1,3 @@
-import calendar
-import json
-from datetime import date, timedelta
-
 '''
 繰り返し設定の解析と次の締め切りの計算を行う関数を提供するモジュール
 このモジュールでは、繰り返し設定を解析するparse_rec関数と、次の締め切りを計算するcalc_next_deadline関数を提供する。
@@ -11,6 +7,10 @@ calc_next_deadline関数は、締め切りと繰り返し設定から次の締�
 繰り返し設定のタイプに応じて、日次、週次、月次の計算を行う。
 calc_next_deadline関数は、締め切りが空の場合や、繰り返し設定の内容が不正な場合はNoneを返す。
 '''
+import calendar
+import json
+from datetime import date, timedelta
+
 def parse_rec(rec):
     '''
     繰り返し設定を解析する関数

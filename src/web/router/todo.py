@@ -1,6 +1,11 @@
+'''
+TODO関連のAPIエンドポイントを定義するモジュール
+このモジュールでは、TODOの作成、更新、削除、状態変更、タグの管理など、TODOに関連するAPIエンドポイントを定義している。
+各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
+'''
 from fastapi import APIRouter, HTTPException, Query
-from schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate
-from repository import (
+from ..schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate
+from ..repository import (
     get_all_todos,
     create_todo,
     toggle_todo,
@@ -14,12 +19,6 @@ from repository import (
 )
 
 router = APIRouter()
-'''
-TODO関連のAPIエンドポイントを定義するモジュール
-このモジュールでは、TODOの作成、更新、削除、状態変更、タグの管理など、TODOに関連するAPIエンドポイントを定義している。
-各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
-'''
-
 
 @router.get("/api/todos")
 def list_todos(tag_id: int | None = Query(default=None)):
