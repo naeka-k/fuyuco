@@ -377,7 +377,7 @@
       }
 
       tags.forEach(tag => {
-        const count = items.filter(item => item.tags.some(t => t.id === tag.id)).length;
+        const count = items.filter(item => !item.done).filter(item => item.tags.some(t => t.id === tag.id)).length;
         const li = document.createElement('li');
         li.className = `tag-item ${activeId === tag.id ? 'active' : ''}`;
 
