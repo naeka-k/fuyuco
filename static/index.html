@@ -775,7 +775,10 @@
       updateSidebar(t, false);
       render(allTodos);
     }
-
+    /**
+     * 
+     * 
+     */
     function startInlineEdit(titleEl, t) {
       const input = document.createElement('input');
       input.type = 'text';
@@ -881,10 +884,14 @@
     }
 
     async function openNewTodo() {
-      const title = document.getElementById('titleInput').value.trim() || '（無題）';
+      // const title = document.getElementById('titleInput').value.trim() || '（無題）';
+      const title = document.getElementById('titleInput').value.trim();
+      // デフォルトで当日の00:00を設定するように修正。
+      const today = nowJST().slice(0, 10);
+      const deadline = `${today}T00:00`;
       const res = await apiFetch(TODO_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, deadline: null }),
+        body: JSON.stringify({ title, deadline }),
       });
       const created = await res.json();
       document.getElementById('titleInput').value = '';
