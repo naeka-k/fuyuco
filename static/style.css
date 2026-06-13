@@ -312,8 +312,9 @@ body {
 
 .notes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px; align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
 }
 
 .note-card {
@@ -321,7 +322,22 @@ body {
   box-shadow: 0 2px 10px #00000015;
   padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 6px;
   transition: box-shadow .15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 280px; /* 固定高さ */
+  overflow: hidden;
 }
+
+.note-title,
+.note-body {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
 .note-card:hover, .note-card:focus-within { box-shadow: 0 4px 18px #00000025; }
 .note-card.dragging { opacity: .4; box-shadow: none; }
 .note-card.drag-over { outline: 2px dashed #3d82f0; outline-offset: 2px; }
@@ -329,12 +345,14 @@ body {
 .note-title {
   font-size: .95rem; font-weight: bold; color: #444;
   outline: none; min-height: 1.2em; word-break: break-word;
+  min-height: 2.4em;
 }
 .note-title:empty::before { content: attr(data-placeholder); color: #b5b5b5; pointer-events: none; }
 
 .note-body {
   font-size: .88rem; color: #444; line-height: 1.6;
   outline: none; min-height: 2em; word-break: break-word; white-space: pre-wrap;
+  flex: 1;
 }
 .note-body:empty::before { content: attr(data-placeholder); color: #b5b5b5; pointer-events: none; }
 
