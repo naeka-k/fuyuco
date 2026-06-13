@@ -1,3 +1,7 @@
+/**
+ * トーストを表示する。
+ * @param {*} msg 
+ */
 function showToast(msg) {
     const el = document.createElement('div');
     el.className = 'toast';
@@ -7,6 +11,12 @@ function showToast(msg) {
     setTimeout(() => { el.classList.remove('toast-show'); setTimeout(() => el.remove(), 300); }, 3500);
 }
 
+/**
+ * APIにアクセスする。
+ * @param {*} url 
+ * @param {*} opts 
+ * @returns 
+ */
 async function apiFetch(url, opts) {
     let res;
     try {
@@ -24,9 +34,7 @@ async function apiFetch(url, opts) {
 
 window.addEventListener('unhandledrejection', e => { e.preventDefault(); });
 
-function nowJST() {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('Z', '');
-}
+
 
 const BASE = '/fuyuco';
 const TODO_API = BASE + '/api/todos';
@@ -497,17 +505,17 @@ function renderKanban() {
             card.className = cardCls;
             card.innerHTML = `
             <div class="kanban-card-title-row">
-              <span class="kanban-card-title">${escHtml(t.title)}</span>
-              ${dl ? `<span class="kanban-card-deadline ${dlCls}">${escHtml(dl)}</span>` : ''}
+            <span class="kanban-card-title">${escHtml(t.title)}</span>
+            ${dl ? `<span class="kanban-card-deadline ${dlCls}">${escHtml(dl)}</span>` : ''}
             </div>
             ${memo ? `<div class="kanban-card-memo">${escHtml(memo)}</div>` : ''}
             ${tagPills ? `<div class="card-tags" style="margin-top:6px">${tagPills}</div>` : ''}
             <div class="kanban-card-footer">
-              <div>${urlBtns}</div>
-              <div class="kanban-move-btns">
+            <div>${urlBtns}</div>
+            <div class="kanban-move-btns">
                 ${status !== 'todo' ? `<button class="btn-kmove" title="戻す" onclick="event.stopPropagation();setStatusById(${t.id},'${status === 'doing' ? 'todo' : 'doing'}')">◀</button>` : ''}
                 ${status !== 'done' ? `<button class="btn-kmove" title="進める" onclick="event.stopPropagation();setStatusById(${t.id},'${status === 'todo' ? 'doing' : 'done'}')">▶</button>` : ''}
-              </div>
+            </div>
             </div>
           `;
             card.addEventListener('click', () => selectTodo(t.id));
@@ -564,14 +572,14 @@ function render(todos) {
             card.innerHTML = `
             <div class="check ${status === 'done' ? 'checked' : status === 'doing' ? 'doing' : ''}" onclick="event.stopPropagation(); toggleById(${t.id})"></div>
             <div class="card-info">
-              <div class="card-title">${escHtml(t.title)}</div>
-              ${t.memo ? `<div class="card-memo">${escHtml(t.memo)}</div>` : ''}
-              ${tagPills ? `<div class="card-tags">${tagPills}</div>` : ''}
+            <div class="card-title">${escHtml(t.title)}</div>
+            ${t.memo ? `<div class="card-memo">${escHtml(t.memo)}</div>` : ''}
+            ${tagPills ? `<div class="card-tags">${tagPills}</div>` : ''}
             </div>
             ${t.recurrence ? `<span class="card-recurrence">🔁</span>` : ''}
             ${(t.urls || []).map(u => `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`).join('')}
             <button class="btn-del" onclick="event.stopPropagation(); delById(${t.id})">✕</button>
-          `;
+            `;
             card.addEventListener('click', () => selectTodo(t.id));
             card.querySelector('.card-title').addEventListener('click', e => {
                 if (t.id !== selectedTodoId) return;
@@ -812,6 +820,11 @@ async function fetchNotes() {
     } catch { }
 }
 
+/**
+ * メモを割り当てる。
+ * 
+ * @returns 
+ */
 function renderNotes() {
     document.querySelector('#note-section .btn-new').style.display =
         activeNoteTagId === 'archived' ? 'none' : '';
@@ -823,6 +836,12 @@ function renderNotes() {
     allNotes.forEach(note => grid.appendChild(buildCard(note)));
 }
 
+/**
+ * メモを構築する。
+ * 
+ * @param {data} note 
+ * @returns 
+ */
 function buildCard(note) {
     const card = document.createElement('div');
     card.className = 'note-card';
@@ -887,7 +906,11 @@ function buildCard(note) {
     const toolbar = document.createElement('div');
     toolbar.className = 'note-toolbar';
     bodyEl.addEventListener('focus', () => { toolbar.style.opacity = '1'; });
-    bodyEl.addEventListener('blur', () => { toolbar.style.opacity = '0'; linkifyDom(bodyEl); });
+    //  bodyEl.addEventListener('blur', () => { toolbar.style.opacity = '0'; linkifyDom(bodyEl); });
+    bodyEl.addEventListener('blur', () => {
+        toolbar.style.opacity = '0';
+        bodyEl.innerHTML = linkifyText(DOMPurify.sanitize(bodyEl.innerHTML));
+    });
 
     let savedRange = null;
     const toolDefs = [
@@ -1059,6 +1082,12 @@ function buildCard(note) {
     return card;
 }
 
+/**
+ * メモ用タグを連結する。
+ * 
+ * @param {Node} container 
+ * @param {Array} tags 
+ */
 function renderNoteTags(container, tags) {
     container.innerHTML = '';
     tags.forEach(tag => {
@@ -1071,6 +1100,11 @@ function renderNoteTags(container, tags) {
     });
 }
 
+/**
+ * メモデータを取得する
+ * @param {number} noteId 
+ * @returns 
+ */
 function getNoteCardData(noteId) {
     const card = document.querySelector(`.note-card[data-id="${noteId}"]`);
     if (!card) return null;
@@ -1086,11 +1120,20 @@ function getNoteCardData(noteId) {
     };
 }
 
+/**
+ * メモ入力中の自動保存が頻繁になりすぎないように制御をする。
+ * @param {number} noteId 
+ */
 function scheduleNoteSave(noteId) {
     clearTimeout(noteSaveTimers[noteId]);
     noteSaveTimers[noteId] = setTimeout(() => flushNoteSave(noteId), 800);
 }
 
+/**
+ * メモを保存する。
+ * @param {number} noteId 
+ * @returns 
+ */
 async function flushNoteSave(noteId) {
     clearTimeout(noteSaveTimers[noteId]);
     const data = getNoteCardData(noteId);
@@ -1109,6 +1152,9 @@ async function flushNoteSave(noteId) {
     renderTagNav();
 }
 
+/**
+ * メモを作成する。
+ */
 async function createNote() {
     const note = await (await apiFetch(NOTE_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1123,6 +1169,11 @@ async function createNote() {
 }
 
 // ── ユーティリティ ──────────────────────────
+/**
+ * イメージを画面に拡大表示する。
+ * 
+ * @param {data} src 
+ */
 function openImageLightbox(src) {
     const overlay = document.createElement('div');
     overlay.className = 'img-lightbox';
@@ -1136,57 +1187,63 @@ function openImageLightbox(src) {
     document.body.appendChild(overlay);
 }
 
+/**
+ * HTML文字列をエスケープして返す。
+ * @param {String} s 
+ * @returns 
+ */
 function escHtml(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
 }
+
+/**
+ * 20文字以上の長さのタグ名の場合は20文字目以降を「…」にして返す。
+ * 
+ * @param {String} name 
+ * @returns 
+ */
 function truncTag(name) {
     return name.length > 20 ? name.slice(0, 19) + '…' : name;
 }
 
-function linkifyDom(node) {
-    const urlRegex = /(https?:\/\/[^\s.,;:'")\]>]+)/g;
-    if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent;
-        if (!urlRegex.test(text)) return;
-        urlRegex.lastIndex = 0;
-        const frag = document.createDocumentFragment();
-        let last = 0, match;
-        while ((match = urlRegex.exec(text)) !== null) {
-            if (match.index > last)
-                frag.appendChild(document.createTextNode(text.slice(last, match.index)));
-            const a = document.createElement('a');
-            a.href = match[1];
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-            a.className = 'note-link';
-            a.textContent = match[1];
-            frag.appendChild(a);
-            last = match.index + match[1].length;
-        }
-        if (last < text.length)
-            frag.appendChild(document.createTextNode(text.slice(last)));
-        node.parentNode.replaceChild(frag, node);
-    } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'A') {
-        [...node.childNodes].forEach(child => linkifyDom(child));
-    }
+/**
+ * HTMLテキストからリンクを抽出してリンク化して返す。
+ * 
+ * @param {String} html 
+ * @returns 
+ */
+function linkifyText(html) {
+    return Autolinker.link(html, {
+        urls: true,
+        email: false,
+        phone: false,
+        stripPrefix: false,
+        className: 'note-link',
+        newWindow: true,
+    });
 }
 
+/**
+ * 文章をHTMLサニタイジングする。
+ * 
+ * @param {String} body 
+ * @returns 
+ */
 function bodyToHtml(body) {
     if (!body) return '';
-    if (/<[a-z][\s\S]*?>/i.test(body)) return body;
-    return escHtml(body).replace(/\n/g, '<br>');
+    if (/<[a-z][\s\S]*?>/i.test(body)) return DOMPurify.sanitize(body);
+    return DOMPurify.sanitize(body).replace(/\n/g, '<br>');
 }
 
-function linkify(text) {
-    const urlRegex = /(https?:\/\/[^\s.,;:'")\]>]+)/g;
-    const parts = text.split(urlRegex);
-    return parts.map((part, i) => {
-        if (i % 2 === 1) {
-            const esc = escHtml(part);
-            return `<a href="${esc}" target="_blank" rel="noopener noreferrer" class="note-link">${esc}</a>`;
-        }
-        return escHtml(part);
-    }).join('');
+/**
+ * 今日の日付を返す。
+ * 
+ * @returns yyyy-MM-ddフォーマットの日本時間の現在時刻 
+ */
+function nowJST() {
+    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('Z', '');
 }
 
 // ── イベントリスナー ────────────────────────
