@@ -94,14 +94,35 @@ function switchSection(section) {
     document.getElementById('note-section').style.display = section === 'note' ? '' : 'none';
     document.getElementById('newTagColorBtn').style.background =
         section === 'note' ? noteSelectedColor : todoSelectedColor;
-    if (section === 'note') closeSidebar();
-    renderTagNav();
+    if (section === 'note') {
+        closeSidebar();
+        renderTagNav();
+    }
     if (section === 'note') {
         fetchNoteTags().then(() => fetchNotes());
     } else {
         fetchTodoTags().then(() => fetchTodos());
     }
     if (section === 'kanban') closeSidebar();
+    // ファビコンとタイトルの更新
+    updatePageMeta(section);
+}
+
+// ── ファビコンとタイトルの更新 ──────────────────────────
+function updatePageMeta(section) {
+    const titleMap = {
+        todo: 'TODO - fuyuco',
+        kanban: 'カンバン - fuyuco',
+        note: 'メモ - fuyuco'
+    };
+    const iconMap = {
+        todo: 'todo.png',
+        kanban: 'kanban.png',
+        note: 'memo.png'
+    };
+    document.title = titleMap[section] || 'fuyuco';
+    const faviconEl = document.getElementById('favicon');
+    if (faviconEl) faviconEl.href = iconMap[section] || 'todo.png';
 }
 
 // ── ポップアップ共通 ────────────────────────
