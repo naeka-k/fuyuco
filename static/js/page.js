@@ -8,7 +8,7 @@ function showToast(msg) {
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(() => el.classList.add('toast-show'), 10);
-    setTimeout(() => { el.classList.remove('toast-show'); setTimeout(() => el.remove(), 300); }, 3500);
+    setTimeout(() => { el.classList.remove('toast-show'); setTimeout(() => el.remove(), TOAST_FADE_DURATION); }, TOAST_SHOW_DURATION);
 }
 
 /**
@@ -33,14 +33,47 @@ async function apiFetch(url, opts) {
 }
 
 window.addEventListener('unhandledrejection', e => { e.preventDefault(); });
-
-
-
+// ── API エンドポイント ──
 const BASE = '/fuyuco';
 const TODO_API = BASE + '/api/todos';
 const NOTE_API = BASE + '/api/notes';
 const TODO_TAGS_API = BASE + '/api/todo-tags';
 const NOTE_TAGS_API = BASE + '/api/note-tags';
+
+// ── タイミング定数（ミリ秒） ──
+const TOAST_SHOW_DURATION = 3500;
+const TOAST_FADE_DURATION = 300;
+const NOTE_SAVE_DEBOUNCE = 800;
+const AUTO_SAVE_DEBOUNCE = 800;
+
+// ── HTTP リクエスト ──
+const HTTP_METHOD_GET = 'GET';
+const HTTP_METHOD_POST = 'POST';
+const HTTP_METHOD_PUT = 'PUT';
+const HTTP_METHOD_PATCH = 'PATCH';
+const HTTP_METHOD_DELETE = 'DELETE';
+const CONTENT_TYPE_JSON = 'application/json';
+const JSON_HEADER = { 'Content-Type': CONTENT_TYPE_JSON };
+
+// ── UI メッセージ ──
+const DEFAULT_TITLE = '';
+const DELETE_TODO_MSG = (title) => `タスク「${title}」を削除しますか？`;
+const DELETE_NOTE_MSG = 'このメモを削除しますか？';
+
+// ── ソート・フォーマット ──
+const SORT_DUMMY_DATE = '9999-99-99';
+const MEMO_TRUNCATE_LEN = 60;
+const TAG_TRUNCATE_LEN = 12;
+const MAX_URL_COUNT = 5;
+const MAX_TAG_HISTORY_LEN = 140;
+
+// ── カラーセット名 ──
+const KANBAN_SORT_KEY = {
+    DL_ASC: 'dl-asc',
+    DL_DESC: 'dl-desc',
+    TITLE_ASC: 'title-asc',
+};
+
 let today = nowJST().slice(0, 10);
 let now = nowJST().slice(0, 16);
 
@@ -57,6 +90,23 @@ const TAG_PRESET_COLORS = [
     '#f47272', '#fb9a3a', '#fbd040', '#6ee7b0', '#5eead4',
     '#60a5fa', '#6366f1', '#a78bfa', '#f472b6', '#f87171',
     '#4ade80', '#22d3ee', '#a3e635', '#bb9165', '#8aaec8',
+];
+
+const titleMap = {
+    todo: 'TODO - fuyuco',
+    kanban: 'カンバン - fuyuco',
+    note: 'メモ - fuyuco'
+};
+const iconMap = {
+    todo: 'todo.png',
+    kanban: 'kanban.png',
+    note: 'memo.png'
+};
+
+const KANBAN_SORT_OPTS = [
+    { value: 'dl-asc', label: '期限が近い順' },
+    { value: 'dl-desc', label: '期限が遠い順' },
+    { value: 'title-asc', label: 'タイトル順' },
 ];
 
 // ── 共通状態 ──
@@ -110,16 +160,6 @@ function switchSection(section) {
 
 // ── ファビコンとタイトルの更新 ──────────────────────────
 function updatePageMeta(section) {
-    const titleMap = {
-        todo: 'TODO - fuyuco',
-        kanban: 'カンバン - fuyuco',
-        note: 'メモ - fuyuco'
-    };
-    const iconMap = {
-        todo: 'todo.png',
-        kanban: 'kanban.png',
-        note: 'memo.png'
-    };
     document.title = titleMap[section] || 'fuyuco';
     const faviconEl = document.getElementById('favicon');
     if (faviconEl) faviconEl.href = iconMap[section] || 'todo.png';
@@ -235,7 +275,7 @@ function renderTagNav() {
             e.stopPropagation();
             openSwatchPopup(dot, 5, TAG_PRESET_COLORS, tag.color, async color => {
                 await apiFetch(`${tagsApi}/${tag.id}/color`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
                     body: JSON.stringify({ color }),
                 });
                 if (activeSection !== 'note') { await fetchTodoTags(); fetchTodos(); }
@@ -425,8 +465,8 @@ function toggleSort() {
 
 function sortedTodos(todos) {
     return [...todos].sort((a, b) => {
-        const da = a.deadline ?? (sortAsc ? '9999-99-99' : '');
-        const db = b.deadline ?? (sortAsc ? '9999-99-99' : '');
+        const da = a.deadline ?? (sortAsc ? SORT_DUMMY_DATE : '');
+        const db = b.deadline ?? (sortAsc ? SORT_DUMMY_DATE : '');
         return sortAsc ? da.localeCompare(db) : db.localeCompare(da);
     });
 }
@@ -454,19 +494,15 @@ function groupLabel(key) {
     return { text: fmtDate(key), cls: '' };
 }
 
-const KANBAN_SORT_OPTS = [
-    { value: 'dl-asc', label: '期限が近い順' },
-    { value: 'dl-desc', label: '期限が遠い順' },
-    { value: 'title-asc', label: 'タイトル順' },
-];
+
 
 function kanbanSortFn(order) {
     return (a, b) => {
-        if (order === 'dl-asc') {
-            const da = a.deadline ?? '9999-99-99', db = b.deadline ?? '9999-99-99';
+        if (order === KANBAN_SORT_KEY.DL_ASC) {
+            const da = a.deadline ?? SORT_DUMMY_DATE, db = b.deadline ?? SORT_DUMMY_DATE;
             return da < db ? -1 : da > db ? 1 : 0;
         }
-        if (order === 'dl-desc') {
+        if (order === KANBAN_SORT_KEY.DL_DESC) {
             const da = a.deadline ?? '', db = b.deadline ?? '';
             return da > db ? -1 : da < db ? 1 : 0;
         }
@@ -505,7 +541,7 @@ function renderKanban() {
         document.getElementById(`k-count-${status}`).textContent = cols[status].length;
         container.innerHTML = '';
         cols[status].forEach(t => {
-            const memo = t.memo ? (t.memo.length > 60 ? t.memo.slice(0, 60) + '…' : t.memo) : '';
+            const memo = t.memo ? (t.memo.length > MEMO_TRUNCATE_LEN ? t.memo.slice(0, MEMO_TRUNCATE_LEN) + '…' : t.memo) : '';
             const dl = fmtDate(t.deadline);
             const isOverdue = t.deadline && t.deadline < now && status !== 'done';
             const isToday = deadlineDatePart(t.deadline) === today && status !== 'done';
@@ -719,7 +755,7 @@ function updateSidebar(t, isNew) {
 function scheduleAutoSave() {
     if (selectedTodoId === null) return;
     clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(saveSelected, 800);
+    autoSaveTimer = setTimeout(saveSelected, AUTO_SAVE_DEBOUNCE);
 }
 
 function discardSidebar() {
@@ -730,13 +766,13 @@ function discardSidebar() {
 }
 
 async function openNewTodo() {
-    // const title = document.getElementById('titleInput').value.trim() || '（無題）';
+    // const title = document.getElementById('titleInput').value.trim() || DEFAULT_TITLE;
     const title = document.getElementById('titleInput').value.trim();
     // デフォルトで当日の00:00を設定するように修正。
     const today = nowJST().slice(0, 10);
     const deadline = `${today}T00:00`;
     const res = await apiFetch(TODO_API, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: HTTP_METHOD_POST, headers: JSON_HEADER,
         body: JSON.stringify({ title, deadline }),
     });
     const created = await res.json();
@@ -746,6 +782,10 @@ async function openNewTodo() {
     document.getElementById('sb-title').select();
 }
 
+/**
+ * サイドバーのクローズ。
+ * 
+ */
 function closeSidebar() {
     selectedTodoId = null;
     isNewMode = false;
@@ -753,8 +793,13 @@ function closeSidebar() {
     render(allTodos);
 }
 
+/**
+ * 選択中のTODOの保存処理。
+ * 
+ * @returns 
+ */
 async function saveSelected() {
-    const title = document.getElementById('sb-title').value.trim() || '（無題）';
+    const title = document.getElementById('sb-title').value.trim() || DEFAULT_TITLE;
     const dlDate = document.getElementById('sb-deadline-date').value;
     const dlTime = document.getElementById('sb-deadline-time').value || '00:00';
     const deadline = dlDate ? dlDate + 'T' + dlTime : null;
@@ -765,7 +810,7 @@ async function saveSelected() {
 
     if (selectedTodoId === null) return;
     await apiFetch(`${TODO_API}/${selectedTodoId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        method: HTTP_METHOD_PUT, headers: JSON_HEADER,
         body: JSON.stringify({ title, deadline, urls, memo, tag_ids, recurrence }),
     });
     originalTask = {
@@ -789,8 +834,8 @@ async function setStatusSelected(status) {
 
 async function setStatusById(id, status) {
     await apiFetch(`${TODO_API}/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: HTTP_METHOD_PATCH,
+        headers: JSON_HEADER,
         body: JSON.stringify({ status }),
     });
     fetchTodos();
@@ -799,7 +844,7 @@ async function setStatusById(id, status) {
 async function delSelected() {
     if (selectedTodoId === null) return;
     const t = allTodos.find(t => t.id === selectedTodoId);
-    if (!confirm(`タスク「${t?.title}」を削除しますか？`)) return;
+    if (!confirm(DELETE_TODO_MSG(t?.title))) return;
     await delById(selectedTodoId);
     closeSidebar();
 }
@@ -812,7 +857,7 @@ async function toggleById(id) {
 
 async function delById(id) {
     const t = allTodos.find(t => t.id === id);
-    if (!confirm(`タスク「${t?.title}」を削除しますか？`)) return;
+    if (!confirm(DELETE_TODO_MSG(t?.title))) return;
     if (selectedTodoId === id) { selectedTodoId = null; document.getElementById('sidebar').classList.remove('open'); }
     await apiFetch(`${TODO_API}/${id}`, { method: 'DELETE' });
     fetchTodos();
@@ -1025,9 +1070,9 @@ function buildCard(note) {
     delBtn.textContent = '🗑';
     delBtn.addEventListener('click', async e => {
         e.stopPropagation();
-        if (!confirm('このメモを削除しますか？')) return;
+        if (!confirm(DELETE_NOTE_MSG)) return;
         clearTimeout(noteSaveTimers[note.id]);
-        await apiFetch(`${NOTE_API}/${note.id}`, { method: 'DELETE' });
+        await apiFetch(`${NOTE_API}/${note.id}`, { method: HTTP_METHOD_DELETE });
         fetchNotes();
     });
 
@@ -1038,7 +1083,7 @@ function buildCard(note) {
     archBtn.addEventListener('click', async e => {
         e.stopPropagation();
         clearTimeout(noteSaveTimers[note.id]);
-        await apiFetch(`${NOTE_API}/${note.id}/archive`, { method: 'PATCH' });
+        await apiFetch(`${NOTE_API}/${note.id}/archive`, { method: HTTP_METHOD_PATCH });
         fetchNotes();
     });
 
@@ -1093,8 +1138,8 @@ function buildCard(note) {
         else toEl.before(fromEl);
         const newOrder = [...grid.querySelectorAll('.note-card')].map(c => parseInt(c.dataset.id, 10));
         await apiFetch(`${NOTE_API}/reorder`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            method: HTTP_METHOD_PUT,
+            headers: JSON_HEADER,
             body: JSON.stringify({ ids: newOrder }),
         });
         allNotes.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
@@ -1147,7 +1192,7 @@ function getNoteCardData(noteId) {
  */
 function scheduleNoteSave(noteId) {
     clearTimeout(noteSaveTimers[noteId]);
-    noteSaveTimers[noteId] = setTimeout(() => flushNoteSave(noteId), 800);
+    noteSaveTimers[noteId] = setTimeout(() => flushNoteSave(noteId), NOTE_SAVE_DEBOUNCE);
 }
 
 /**
@@ -1160,7 +1205,7 @@ async function flushNoteSave(noteId) {
     const data = getNoteCardData(noteId);
     if (!data) return;
     const res = await apiFetch(`${NOTE_API}/${noteId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        method: HTTP_METHOD_PUT, headers: JSON_HEADER,
         body: JSON.stringify(data),
     });
     const updated = await res.json();
@@ -1178,7 +1223,7 @@ async function flushNoteSave(noteId) {
  */
 async function createNote() {
     const note = await (await apiFetch(NOTE_API, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: HTTP_METHOD_POST, headers: JSON_HEADER,
         body: JSON.stringify({ title: '', body: '', color: '#ffffff' }),
     })).json();
     allNotes.unshift(note);
@@ -1268,6 +1313,10 @@ function nowJST() {
 }
 
 // ── イベントリスナー ────────────────────────
+/**
+ * タグ入力時の Enterキーイベント。
+ * タグを追加。
+ */
 document.getElementById('tagInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') addTag();
 });
@@ -1283,6 +1332,11 @@ newTagColorBtn.addEventListener('click', () => {
     });
 });
 
+/**
+ * 画面のどこかをクリックしたときのイベント。
+ * サイドバーを非表示にする。
+ * 
+ */
 document.addEventListener('click', e => {
     if (activeSection === 'note') return;
     if (!selectedTodoId && !isNewMode) return;
@@ -1298,10 +1352,17 @@ document.addEventListener('click', e => {
     closeSidebar();
 });
 
+/**
+ * TODOのタイトル入力欄でのキーイベント処理。
+ * 
+ */
 document.getElementById('titleInput').addEventListener('keydown', async e => {
     if (e.key !== 'Enter') return;
     const title = document.getElementById('titleInput').value.trim();
     if (!title) return;
+    // デフォルトで当日の00:00を設定するように修正。
+    const today = nowJST().slice(0, 10);
+    const deadline = `${today}T00:00`;
     const res = await apiFetch(TODO_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, deadline: null }),
