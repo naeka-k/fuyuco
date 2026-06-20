@@ -197,6 +197,14 @@ function openSwatchPopup(anchorEl, cols, colors, currentColor, onSelect) {
     }, 0);
 }
 
+/**
+ * タグ選択用のポップアップ表示。
+ * 
+ * @param {Element} anchorEl 
+ * @param {number} noteId 
+ * @param {number} checkedTagIds 
+ * @returns 
+ */
 function openTagPopup(anchorEl, noteId, checkedTagIds) {
     if (activePopup) { activePopup.remove(); activePopup = null; }
     if (allNoteTags.length === 0) return;
@@ -294,6 +302,11 @@ function renderTagNav() {
     });
 }
 
+/**
+ * 引数で指定されたタグを選択状態にする
+ * 
+ * @param {*} tagId 
+ */
 async function selectTag(tagId) {
     if (activeSection !== 'note') {
         activeTodoTagId = tagId;
@@ -305,6 +318,10 @@ async function selectTag(tagId) {
     renderTagNav();
 }
 
+/**
+ * タグの追加
+ * @returns 
+ */
 async function addTag() {
     const name = document.getElementById('tagInput').value.trim();
     if (!name) return;
@@ -319,6 +336,12 @@ async function addTag() {
     else await fetchNoteTags();
 }
 
+/**
+ * タグの削除
+ * 
+ * @param {number} tagId 
+ * @returns 
+ */
 async function deleteTag(tagId) {
     const tags = activeSection !== 'note' ? allTodoTags : allNoteTags;
     const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
@@ -457,12 +480,18 @@ async function fetchTodos() {
     } catch { }
 }
 
+/**
+ * TODO用ソート順の切り替え
+ */
 function toggleSort() {
     sortAsc = !sortAsc;
     document.getElementById('sortBtn').textContent = sortAsc ? '期限 ▲ 昇順' : '期限 ▼ 降順';
     render(allTodos);
 }
 
+/**
+ * TODO用ソート順の切り替え
+ */
 function sortedTodos(todos) {
     return [...todos].sort((a, b) => {
         const da = a.deadline ?? (sortAsc ? SORT_DUMMY_DATE : '');
@@ -486,6 +515,11 @@ function groupByDeadline(todos) {
     return map;
 }
 
+/**
+ * TODOを期限と現在日付に応じてグルーピングする。
+ * @param {String} key 
+ * @returns 
+ */
 function groupLabel(key) {
     if (key === '__done__') return { text: '完了済み', cls: '' };
     if (key === '__none__') return { text: '期限なし', cls: '' };
@@ -494,8 +528,12 @@ function groupLabel(key) {
     return { text: fmtDate(key), cls: '' };
 }
 
-
-
+/**
+ * カンバンソート
+ * 
+ * @param {number} order 
+ * @returns 
+ */
 function kanbanSortFn(order) {
     return (a, b) => {
         if (order === KANBAN_SORT_KEY.DL_ASC) {
@@ -510,6 +548,10 @@ function kanbanSortFn(order) {
     };
 }
 
+/**
+ * カンバンの画面反映
+ * 
+ */
 function renderKanban() {
     ['todo', 'doing', 'done'].forEach(s => {
         const sel = document.getElementById(`k-sort-${s}`);
@@ -581,6 +623,11 @@ function renderKanban() {
     });
 }
 
+/**
+ * TODOの画面反映
+ * @param {data[]} todos 
+ * @returns 
+ */
 function render(todos) {
     const list = document.getElementById('list');
     const empty = document.getElementById('todo-empty');
@@ -765,6 +812,9 @@ function discardSidebar() {
     closeSidebar();
 }
 
+/**
+ * 
+ */
 async function openNewTodo() {
     // const title = document.getElementById('titleInput').value.trim() || DEFAULT_TITLE;
     const title = document.getElementById('titleInput').value.trim();
@@ -820,6 +870,10 @@ async function saveSelected() {
     await fetchTodos();
 }
 
+/**
+ * 選択中のTODOの完了／未完の切り替え
+ * @returns 
+ */
 async function toggleSelected() {
     if (selectedTodoId === null) return;
     const t = allTodos.find(t => t.id === selectedTodoId);
@@ -827,11 +881,22 @@ async function toggleSelected() {
     await setStatusById(selectedTodoId, status === 'done' ? 'todo' : 'done');
 }
 
+/**
+ * 選択したTODOのステータス変更。
+ * @param {number} status 
+ * @returns 
+ */
 async function setStatusSelected(status) {
     if (selectedTodoId === null) return;
     await setStatusById(selectedTodoId, status);
 }
 
+/**
+ * TODOのステータス変更。
+ * 
+ * @param {number} id 
+ * @param {number} status 
+ */
 async function setStatusById(id, status) {
     await apiFetch(`${TODO_API}/${id}/status`, {
         method: HTTP_METHOD_PATCH,
@@ -841,6 +906,11 @@ async function setStatusById(id, status) {
     fetchTodos();
 }
 
+/**
+ * 選択したTODOの削除処理。
+ * 
+ * @returns 
+ */
 async function delSelected() {
     if (selectedTodoId === null) return;
     const t = allTodos.find(t => t.id === selectedTodoId);
@@ -849,12 +919,22 @@ async function delSelected() {
     closeSidebar();
 }
 
+/**
+ * TODOの完了/未完切り替え
+ * @param {number} id 
+ */
 async function toggleById(id) {
     const t = allTodos.find(t => t.id === id);
     const status = t?.status || (t?.done ? 'done' : 'todo');
     await setStatusById(id, status === 'done' ? 'todo' : 'done');
 }
 
+/**
+ * TODOの削除処理。
+ * 
+ * @param {number} id 
+ * @returns 
+ */
 async function delById(id) {
     const t = allTodos.find(t => t.id === id);
     if (!confirm(DELETE_TODO_MSG(t?.title))) return;
@@ -1365,7 +1445,7 @@ document.getElementById('titleInput').addEventListener('keydown', async e => {
     const deadline = `${today}T00:00`;
     const res = await apiFetch(TODO_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, deadline: null }),
+        body: JSON.stringify({ title, deadline}),
     });
     document.getElementById('titleInput').value = '';
     const created = await res.json();
