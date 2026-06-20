@@ -32,6 +32,48 @@ async function apiFetch(url, opts) {
     return res;
 }
 
+// ショートハンド
+/**
+ * DOMのElement取得
+ * 
+ * @param {selector} sel 
+ * @returns 
+ */
+function $qs(sel) {
+    return document.querySelector(sel);
+}
+
+/**
+ * DOMのElement取得
+ * 
+ * @param {selector} sel 
+ * @returns Element[]
+ */
+function $qsa(sel) {
+    return document.querySelectorAll(sel);
+}
+
+/**
+ * DOMのElement取得
+ * 
+ * @param {id} id 
+ * @returns Element
+ */
+function $ge(id){
+    return document.getElementById(id);
+}
+
+/**
+ * エラー制御
+ * @param {error} error 
+ * @param {string} msg0 
+ * @param {string} msg1 
+ */
+function errorHandle(error, msg0, msg1){
+    showToast(msg0 + ' ' + msg1);
+    throw error;
+}
+
 window.addEventListener('unhandledrejection', e => { e.preventDefault(); });
 // ── API エンドポイント ──
 const BASE = '/fuyuco';
@@ -133,27 +175,31 @@ let noteSaveTimers = {};
 let noteSelectedColor = TAG_PRESET_COLORS[5];
 
 // ── セクション切替 ──────────────────────────
+function isTodo() { return activeSection === 'todo'}; 
+function isNote() { return  activeSection === 'note'};
+function isKanban() { return  activeSection === 'kanban'};
+
 function switchSection(section) {
     activeSection = section;
     history.replaceState(null, '', '#' + section);
-    document.getElementById('tab-todo').classList.toggle('active', section === 'todo');
-    document.getElementById('tab-kanban').classList.toggle('active', section === 'kanban');
-    document.getElementById('tab-note').classList.toggle('active', section === 'note');
-    document.getElementById('todo-section').style.display = section === 'todo' ? '' : 'none';
-    document.getElementById('kanban-section').style.display = section === 'kanban' ? '' : 'none';
-    document.getElementById('note-section').style.display = section === 'note' ? '' : 'none';
-    document.getElementById('newTagColorBtn').style.background =
-        section === 'note' ? noteSelectedColor : todoSelectedColor;
-    if (section === 'note') {
+    $ge('tab-todo').classList.toggle('active', section === 'todo');
+    $ge('tab-kanban').classList.toggle('active', section === 'kanban');
+    $ge('tab-note').classList.toggle('active', section === 'note');
+    $ge('todo-section').style.display = section === 'todo' ? '' : 'none';
+    $ge('kanban-section').style.display = section === 'kanban' ? '' : 'none';
+    $ge('note-section').style.display = section === 'note' ? '' : 'none';
+    $ge('newTagColorBtn').style.background =
+        isNote() ? noteSelectedColor : todoSelectedColor;
+    if (isNote()) {
         closeSidebar();
         renderTagNav();
     }
-    if (section === 'note') {
+    if (isNote()) {
         fetchNoteTags().then(() => fetchNotes());
     } else {
         fetchTodoTags().then(() => fetchTodos());
     }
-    if (section === 'kanban') closeSidebar();
+    if (isKanban()) closeSidebar();
     // ファビコンとタイトルの更新
     updatePageMeta(section);
 }
@@ -161,7 +207,7 @@ function switchSection(section) {
 // ── ファビコンとタイトルの更新 ──────────────────────────
 function updatePageMeta(section) {
     document.title = titleMap[section] || 'fuyuco';
-    const faviconEl = document.getElementById('favicon');
+    const faviconEl = $ge('favicon');
     if (faviconEl) faviconEl.href = iconMap[section] || 'todo.png';
 }
 
@@ -247,13 +293,13 @@ function openTagPopup(anchorEl, noteId, checkedTagIds) {
 
 // ── タグナビ共通 ────────────────────────────
 function renderTagNav() {
-    const tags = activeSection !== 'note' ? allTodoTags : allNoteTags;
-    const activeId = activeSection !== 'note' ? activeTodoTagId : activeNoteTagId;
-    const items = activeSection === 'note' ? allNotes
-        : activeSection === 'kanban' ? allTodos.filter(t => !t.recurrence)
+    const tags = !isNote() ? allTodoTags : allNoteTags;
+    const activeId = !isNote() ? activeTodoTagId : activeNoteTagId;
+    const items = isNote() ? allNotes
+        : isKanban() ? allTodos.filter(t => !t.recurrence)
             : allTodos;
-    const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
-    const ul = document.getElementById('tagList');
+    const tagsApi = !isNote() ? TODO_TAGS_API : NOTE_TAGS_API;
+    const ul = $ge('tagList');
     ul.innerHTML = '';
 
     const allItem = document.createElement('li');
@@ -286,7 +332,7 @@ function renderTagNav() {
                     method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
                     body: JSON.stringify({ color }),
                 });
-                if (activeSection !== 'note') { await fetchTodoTags(); fetchTodos(); }
+                if (!isNote()) { await fetchTodoTags(); fetchTodos(); }
                 else { await fetchNoteTags(); fetchNotes(); }
             });
         });
@@ -308,7 +354,7 @@ function renderTagNav() {
  * @param {*} tagId 
  */
 async function selectTag(tagId) {
-    if (activeSection !== 'note') {
+    if (!isNote()) {
         activeTodoTagId = tagId;
         await fetchTodos();
     } else {
@@ -323,7 +369,7 @@ async function selectTag(tagId) {
  * @returns 
  */
 async function addTag() {
-    const name = document.getElementById('tagInput').value.trim();
+    const name = $ge('tagInput').value.trim();
     if (!name) return;
     const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
     const color = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
@@ -331,7 +377,7 @@ async function addTag() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, color }),
     });
-    document.getElementById('tagInput').value = '';
+    $ge('tagInput').value = '';
     if (activeSection !== 'note') await fetchTodoTags();
     else await fetchNoteTags();
 }
@@ -363,13 +409,15 @@ async function fetchTodoTags() {
         const res = await apiFetch(TODO_TAGS_API);
         allTodoTags = await res.json();
         renderTagNav();
-    } catch { }
+    } catch(error) {
+        errorHandle(error, 'TODOタグの取得に失敗しました', 'fetchTodoTags failed.') 
+    }
 }
 
 let sidebarTagIds = [];
 
 function renderSidebarSelectedTags() {
-    const container = document.getElementById('sb-selected-tags');
+    const container = $ge('sb-selected-tags');
     container.innerHTML = '';
     allTodoTags.filter(t => sidebarTagIds.includes(t.id)).forEach(tag => {
         const pill = document.createElement('span');
@@ -383,7 +431,7 @@ function renderSidebarSelectedTags() {
 }
 
 function openSidebarTagPopup() {
-    const anchorEl = document.getElementById('sb-tag-btn');
+    const anchorEl = $ge('sb-tag-btn');
     if (activePopup) { activePopup.remove(); activePopup = null; }
     if (allTodoTags.length === 0) return;
     const popup = document.createElement('div');
@@ -398,7 +446,7 @@ function openSidebarTagPopup() {
         cb.style.accentColor = tag.color;
         cb.addEventListener('change', () => {
             sidebarTagIds = allTodoTags.filter(t =>
-                document.querySelector(`.tag-popup input[value="${t.id}"]`)?.checked
+                $qs(`.tag-popup input[value="${t.id}"]`)?.checked
             ).map(t => t.id);
             renderSidebarSelectedTags();
             scheduleAutoSave();
@@ -435,7 +483,7 @@ function getSidebarCheckedTagIds() {
 
 // ── サイドバーURL管理 ────────────────────────
 function addUrlInput(value = '') {
-    const container = document.getElementById('sb-urls');
+    const container = $ge('sb-urls');
     if (container.children.length >= 5) return;
     const row = document.createElement('div');
     row.className = 'sb-url-row';
@@ -456,12 +504,12 @@ function addUrlInput(value = '') {
 }
 
 function updateUrlAddBtn() {
-    const count = document.getElementById('sb-urls').children.length;
-    document.getElementById('sb-url-add-btn').style.display = count >= 5 ? 'none' : '';
+    const count = $ge('sb-urls').children.length;
+    $ge('sb-url-add-btn').style.display = count >= 5 ? 'none' : '';
 }
 
 function getSidebarUrls() {
-    return [...document.querySelectorAll('#sb-urls .sb-url-row input')]
+    return [...$qsa('#sb-urls .sb-url-row input')]
         .map(i => i.value.trim()).filter(Boolean);
 }
 
@@ -477,7 +525,9 @@ async function fetchTodos() {
             const t = allTodos.find(t => t.id === selectedTodoId);
             if (t) updateSidebar(t, false); else closeSidebar();
         }
-    } catch { }
+    } catch(error) {
+        errorHandle(error, 'TODOの取得に失敗しました','fetchTodos failed.')
+    }
 }
 
 /**
@@ -485,7 +535,7 @@ async function fetchTodos() {
  */
 function toggleSort() {
     sortAsc = !sortAsc;
-    document.getElementById('sortBtn').textContent = sortAsc ? '期限 ▲ 昇順' : '期限 ▼ 降順';
+    $ge('sortBtn').textContent = sortAsc ? '期限 ▲ 昇順' : '期限 ▼ 降順';
     render(allTodos);
 }
 
@@ -554,7 +604,7 @@ function kanbanSortFn(order) {
  */
 function renderKanban() {
     ['todo', 'doing', 'done'].forEach(s => {
-        const sel = document.getElementById(`k-sort-${s}`);
+        const sel = $ge(`k-sort-${s}`);
         if (!sel.options.length) {
             KANBAN_SORT_OPTS.forEach(o => {
                 const opt = document.createElement('option');
@@ -574,13 +624,13 @@ function renderKanban() {
         (cols[s] || cols.todo).push(t);
     });
     ['todo', 'doing', 'done'].forEach(s => {
-        const order = document.getElementById(`k-sort-${s}`).value;
+        const order = $ge(`k-sort-${s}`).value;
         cols[s].sort(kanbanSortFn(order));
     });
 
     ['todo', 'doing', 'done'].forEach(status => {
-        const container = document.getElementById(`k-${status}`);
-        document.getElementById(`k-count-${status}`).textContent = cols[status].length;
+        const container = $ge(`k-${status}`);
+        $ge(`k-count-${status}`).textContent = cols[status].length;
         container.innerHTML = '';
         cols[status].forEach(t => {
             const memo = t.memo ? (t.memo.length > MEMO_TRUNCATE_LEN ? t.memo.slice(0, MEMO_TRUNCATE_LEN) + '…' : t.memo) : '';
@@ -629,8 +679,8 @@ function renderKanban() {
  * @returns 
  */
 function render(todos) {
-    const list = document.getElementById('list');
-    const empty = document.getElementById('todo-empty');
+    const list = $ge('list');
+    const empty = $ge('todo-empty');
     list.innerHTML = '';
     if (todos.length === 0) { empty.style.display = ''; return; }
     empty.style.display = 'none';
@@ -693,7 +743,9 @@ function render(todos) {
             list.appendChild(card);
         });
     });
-    if (activeSection === 'kanban') renderKanban();
+    if (isKanban()){
+        renderKanban();
+    }
 }
 
 // ── サイドバー ──────────────────────────────
@@ -705,7 +757,7 @@ function selectTodo(id) {
     render(allTodos);
 }
 /**
- * 
+ * 画面
  * 
  */
 function startInlineEdit(titleEl, t) {
@@ -733,7 +785,9 @@ function startInlineEdit(titleEl, t) {
                 const idx = allTodos.findIndex(x => x.id === t.id);
                 if (idx !== -1) allTodos[idx] = updated;
                 if (selectedTodoId === t.id) updateSidebar(updated, false);
-            } catch { }
+            } catch {
+                // ここはうっとうしいので画面に出さない。
+             }
         }
         render(allTodos);
     }
@@ -744,6 +798,12 @@ function startInlineEdit(titleEl, t) {
     });
 }
 
+/**
+ * 繰り返し情報の解析
+ * 
+ * @param {json} rec 
+ * @returns 
+ */
 function parseRecurrence(rec) {
     if (!rec) return { type: '', days: [], dates: [], end: '' };
     try {
@@ -755,48 +815,48 @@ function parseRecurrence(rec) {
 }
 
 function getRecurrenceValue() {
-    const type = document.getElementById('sb-recurrence').value;
+    const type = $ge('sb-recurrence').value;
     if (!type) return null;
-    const days = [...document.querySelectorAll('.recurrence-day-btn.on')].map(b => +b.dataset.day);
-    const dates = [...document.querySelectorAll('.recurrence-date-btn.on')].map(b => +b.dataset.date);
+    const days = [...$qsa('.recurrence-day-btn.on')].map(b => +b.dataset.day);
+    const dates = [...$qsa('.recurrence-date-btn.on')].map(b => +b.dataset.date);
     return JSON.stringify({ type, days, dates });
 }
 
 function updateRecurrenceUI(type, days, dates, end) {
-    const extra = document.getElementById('sb-recurrence-extra');
+    const extra = $ge('sb-recurrence-extra');
     extra.classList.toggle('active', !!type);
-    document.getElementById('sb-weekdays-field').style.display = type === 'weekly' ? '' : 'none';
-    document.getElementById('sb-monthdates-field').style.display = type === 'monthly' ? '' : 'none';
-    document.querySelectorAll('.recurrence-day-btn').forEach(b =>
+    $ge('sb-weekdays-field').style.display = type === 'weekly' ? '' : 'none';
+    $ge('sb-monthdates-field').style.display = type === 'monthly' ? '' : 'none';
+    $qsa('.recurrence-day-btn').forEach(b =>
         b.classList.toggle('on', (days || []).includes(+b.dataset.day)));
-    document.querySelectorAll('.recurrence-date-btn').forEach(b =>
+    $qsa('.recurrence-date-btn').forEach(b =>
         b.classList.toggle('on', (dates || []).includes(+b.dataset.date)));
 }
 
 function updateSidebar(t, isNew) {
     originalTask = isNew ? null : JSON.parse(JSON.stringify(t));
-    document.getElementById('sb-title').value = t.title ?? '';
+    $ge('sb-title').value = t.title ?? '';
     const dlVal = t.deadline
         ? (t.deadline.includes('T') ? t.deadline : t.deadline + 'T00:00')
         : '';
-    document.getElementById('sb-deadline-date').value = t.deadline ? t.deadline.slice(0, 10) : '';
-    document.getElementById('sb-deadline-time').value = (t.deadline && t.deadline.includes('T')) ? t.deadline.slice(11, 13) + ':00' : '00:00';
+    $ge('sb-deadline-date').value = t.deadline ? t.deadline.slice(0, 10) : '';
+    $ge('sb-deadline-time').value = (t.deadline && t.deadline.includes('T')) ? t.deadline.slice(11, 13) + ':00' : '00:00';
     const rec = parseRecurrence(t.recurrence);
-    document.getElementById('sb-recurrence').value = rec.type;
+    $ge('sb-recurrence').value = rec.type;
     updateRecurrenceUI(rec.type, rec.days, rec.dates, rec.end);
-    const urlContainer = document.getElementById('sb-urls');
+    const urlContainer = $ge('sb-urls');
     urlContainer.innerHTML = '';
     (t.urls || []).forEach(u => addUrlInput(u));
     updateUrlAddBtn();
-    document.getElementById('sb-memo').value = t.memo ?? '';
-    document.getElementById('sb-status-field').style.display = '';
-    document.getElementById('sb-del-btn').style.display = '';
-    document.getElementById('sb-discard-btn').style.display = 'none';
+    $ge('sb-memo').value = t.memo ?? '';
+    $ge('sb-status-field').style.display = '';
+    $ge('sb-del-btn').style.display = '';
+    $ge('sb-discard-btn').style.display = 'none';
     const currentStatus = t.status || (t.done ? 'done' : 'todo');
-    document.querySelector(`input[name="sb-status"][value="${currentStatus}"]`).checked = true;
+    $qs(`input[name="sb-status"][value="${currentStatus}"]`).checked = true;
     sidebarTagIds = (t.tags ?? []).map(tg => tg.id);
     renderSidebarSelectedTags();
-    document.getElementById('sidebar').classList.add('open');
+    $ge('sidebar').classList.add('open');
 }
 
 function scheduleAutoSave() {
@@ -816,20 +876,25 @@ function discardSidebar() {
  * 
  */
 async function openNewTodo() {
-    // const title = document.getElementById('titleInput').value.trim() || DEFAULT_TITLE;
-    const title = document.getElementById('titleInput').value.trim();
+    // const title = $ge('titleInput').value.trim() || DEFAULT_TITLE;
+    const title = $ge('titleInput').value.trim();
     // デフォルトで当日の00:00を設定するように修正。
-    const today = nowJST().slice(0, 10);
-    const deadline = `${today}T00:00`;
+    const deadline = getDefaultDeadline();
     const res = await apiFetch(TODO_API, {
         method: HTTP_METHOD_POST, headers: JSON_HEADER,
         body: JSON.stringify({ title, deadline }),
     });
     const created = await res.json();
-    document.getElementById('titleInput').value = '';
+    $ge('titleInput').value = '';
     await fetchTodos();
     selectTodo(created.id);
-    document.getElementById('sb-title').select();
+    $ge('sb-title').select();
+}
+
+function getDefaultDeadline() {
+    const today = nowJST().slice(0, 10);
+    const deadline = `${today}T00:00`;
+    return deadline;
 }
 
 /**
@@ -839,7 +904,7 @@ async function openNewTodo() {
 function closeSidebar() {
     selectedTodoId = null;
     isNewMode = false;
-    document.getElementById('sidebar').classList.remove('open');
+    $ge('sidebar').classList.remove('open');
     render(allTodos);
 }
 
@@ -849,13 +914,13 @@ function closeSidebar() {
  * @returns 
  */
 async function saveSelected() {
-    const title = document.getElementById('sb-title').value.trim() || DEFAULT_TITLE;
-    const dlDate = document.getElementById('sb-deadline-date').value;
-    const dlTime = document.getElementById('sb-deadline-time').value || '00:00';
+    const title = $ge('sb-title').value.trim() || DEFAULT_TITLE;
+    const dlDate = $ge('sb-deadline-date').value;
+    const dlTime = $ge('sb-deadline-time').value || '00:00';
     const deadline = dlDate ? dlDate + 'T' + dlTime : null;
     const recurrence = getRecurrenceValue();
     const urls = getSidebarUrls();
-    const memo = document.getElementById('sb-memo').value || null;
+    const memo = $ge('sb-memo').value || null;
     const tag_ids = getSidebarCheckedTagIds();
 
     if (selectedTodoId === null) return;
@@ -938,7 +1003,7 @@ async function toggleById(id) {
 async function delById(id) {
     const t = allTodos.find(t => t.id === id);
     if (!confirm(DELETE_TODO_MSG(t?.title))) return;
-    if (selectedTodoId === id) { selectedTodoId = null; document.getElementById('sidebar').classList.remove('open'); }
+    if (selectedTodoId === id) { selectedTodoId = null; $ge('sidebar').classList.remove('open'); }
     await apiFetch(`${TODO_API}/${id}`, { method: 'DELETE' });
     fetchTodos();
 }
@@ -949,7 +1014,9 @@ async function fetchNoteTags() {
         const res = await apiFetch(NOTE_TAGS_API);
         allNoteTags = await res.json();
         renderTagNav();
-    } catch { }
+    } catch(error) { 
+        errorHandle(error, 'メモタグの取得に失敗しました', 'fetchNoteTags failed.');
+    }
 }
 
 // ── Note CRUD ───────────────────────────────
@@ -963,7 +1030,9 @@ async function fetchNotes() {
         allNotes = await res.json();
         renderNotes();
         renderTagNav();
-    } catch { }
+    } catch(error) {
+        errorHandle(error, 'メモの取得に失敗しました', 'fetchNotes failed.')
+    }
 }
 
 /**
@@ -972,10 +1041,10 @@ async function fetchNotes() {
  * @returns 
  */
 function renderNotes() {
-    document.querySelector('#note-section .btn-new').style.display =
+    $qs('#note-section .btn-new').style.display =
         activeNoteTagId === 'archived' ? 'none' : '';
-    const grid = document.getElementById('notesGrid');
-    const empty = document.getElementById('note-empty');
+    const grid = $ge('notesGrid');
+    const empty = $ge('note-empty');
     grid.innerHTML = '';
     if (allNotes.length === 0) { empty.style.display = ''; return; }
     empty.style.display = 'none';
@@ -1192,7 +1261,7 @@ function buildCard(note) {
     });
     card.addEventListener('dragend', () => {
         card.classList.remove('dragging');
-        document.querySelectorAll('.note-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        $qsa('.note-card.drag-over').forEach(c => c.classList.remove('drag-over'));
     });
     card.addEventListener('dragover', e => {
         e.preventDefault();
@@ -1208,7 +1277,7 @@ function buildCard(note) {
         const fromId = parseInt(e.dataTransfer.getData('text/plain'), 10);
         const toId = note.id;
         if (fromId === toId) return;
-        const grid = document.getElementById('notesGrid');
+        const grid = $ge('notesGrid');
         const cards = [...grid.querySelectorAll('.note-card')];
         const fromEl = grid.querySelector(`.note-card[data-id="${fromId}"]`);
         const toEl = card;
@@ -1252,7 +1321,7 @@ function renderNoteTags(container, tags) {
  * @returns 
  */
 function getNoteCardData(noteId) {
-    const card = document.querySelector(`.note-card[data-id="${noteId}"]`);
+    const card = $qs(`.note-card[data-id="${noteId}"]`);
     if (!card) return null;
     const note = allNotes.find(n => n.id === noteId);
     const tagIds = activePopup
@@ -1292,7 +1361,7 @@ async function flushNoteSave(noteId) {
     const note = allNotes.find(n => n.id === noteId);
     if (note) {
         note.tags = updated.tags;
-        const tagsEl = document.getElementById(`tags-${noteId}`);
+        const tagsEl = $ge(`tags-${noteId}`);
         if (tagsEl) renderNoteTags(tagsEl, updated.tags);
     }
     renderTagNav();
@@ -1307,9 +1376,9 @@ async function createNote() {
         body: JSON.stringify({ title: '', body: '', color: '#ffffff' }),
     })).json();
     allNotes.unshift(note);
-    document.getElementById('note-empty').style.display = 'none';
+    $ge('note-empty').style.display = 'none';
     const card = buildCard(note);
-    document.getElementById('notesGrid').prepend(card);
+    $ge('notesGrid').prepend(card);
     card.querySelector('.note-title').focus();
     renderTagNav();
 }
@@ -1397,11 +1466,11 @@ function nowJST() {
  * タグ入力時の Enterキーイベント。
  * タグを追加。
  */
-document.getElementById('tagInput').addEventListener('keydown', e => {
+$ge('tagInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') addTag();
 });
 
-const newTagColorBtn = document.getElementById('newTagColorBtn');
+const newTagColorBtn = $ge('newTagColorBtn');
 newTagColorBtn.style.background = todoSelectedColor;
 newTagColorBtn.addEventListener('click', () => {
     const current = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
@@ -1436,18 +1505,17 @@ document.addEventListener('click', e => {
  * TODOのタイトル入力欄でのキーイベント処理。
  * 
  */
-document.getElementById('titleInput').addEventListener('keydown', async e => {
+$ge('titleInput').addEventListener('keydown', async e => {
     if (e.key !== 'Enter') return;
-    const title = document.getElementById('titleInput').value.trim();
+    const title = $ge('titleInput').value.trim();
     if (!title) return;
     // デフォルトで当日の00:00を設定するように修正。
-    const today = nowJST().slice(0, 10);
-    const deadline = `${today}T00:00`;
+    const deadline = getDefaultDeadline();
     const res = await apiFetch(TODO_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, deadline}),
     });
-    document.getElementById('titleInput').value = '';
+    $ge('titleInput').value = '';
     const created = await res.json();
     selectedTodoId = created.id;
     isNewMode = false;
@@ -1458,7 +1526,7 @@ document.getElementById('titleInput').addEventListener('keydown', async e => {
 
 // 毎月日付グリッドを生成
 (function () {
-    const grid = document.getElementById('sb-date-grid');
+    const grid = $ge('sb-date-grid');
     for (let d = 1; d <= 31; d++) {
         const btn = document.createElement('button');
         btn.className = 'recurrence-date-btn';
@@ -1470,22 +1538,22 @@ document.getElementById('titleInput').addEventListener('keydown', async e => {
     }
 })();
 
-document.querySelectorAll('.recurrence-day-btn').forEach(btn => {
+$qsa('.recurrence-day-btn').forEach(btn => {
     btn.addEventListener('click', () => { btn.classList.toggle('on'); scheduleAutoSave(); });
 });
 
-document.getElementById('sb-recurrence').addEventListener('change', () => {
-    const type = document.getElementById('sb-recurrence').value;
+$ge('sb-recurrence').addEventListener('change', () => {
+    const type = $ge('sb-recurrence').value;
     updateRecurrenceUI(type, [], [], null);
     scheduleAutoSave();
 });
 
 ['sb-title', 'sb-memo', 'sb-deadline-date'].forEach(id => {
-    document.getElementById(id).addEventListener('input', scheduleAutoSave);
+    $ge(id).addEventListener('input', scheduleAutoSave);
 });
-document.getElementById('sb-deadline-time').addEventListener('change', scheduleAutoSave);
-document.getElementById('sb-tag-btn').addEventListener('click', openSidebarTagPopup);
-document.getElementById('sb-url-add-btn').addEventListener('click', () => addUrlInput());
+$ge('sb-deadline-time').addEventListener('change', scheduleAutoSave);
+$ge('sb-tag-btn').addEventListener('click', openSidebarTagPopup);
+$ge('sb-url-add-btn').addEventListener('click', () => addUrlInput());
 
 // 日付変更検知（日付が変わったらTODOを再取得して繰り返しタスクを生成）
 setInterval(() => {
