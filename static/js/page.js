@@ -21,13 +21,11 @@ async function apiFetch(url, opts) {
     let res;
     try {
         res = await window.fetch(url, opts);
-    } catch {
-        showToast('ネットワークエラーが発生しました');
-        throw new Error('network');
+    } catch(error) {
+        errorHandle(error, 'ネットワークエラーが発生しました', 'apiFetch failed.') 
     }
     if (!res.ok) {
-        showToast(`エラーが発生しました（${res.status}）`);
-        throw new Error(`HTTP ${res.status}`);
+        errorHandle(new Error(), `エラーが発生しました（${res.status}）`, `apiFetch failed HTTP ${res.status}`) ;
     }
     return res;
 }
@@ -179,6 +177,11 @@ function isTodo() { return activeSection === 'todo'};
 function isNote() { return  activeSection === 'note'};
 function isKanban() { return  activeSection === 'kanban'};
 
+/**
+ * タブ選択時の表示処理。
+ * 
+ * @param {number} section 
+ */
 function switchSection(section) {
     activeSection = section;
     history.replaceState(null, '', '#' + section);
@@ -193,13 +196,11 @@ function switchSection(section) {
     if (isNote()) {
         closeSidebar();
         renderTagNav();
-    }
-    if (isNote()) {
         fetchNoteTags().then(() => fetchNotes());
     } else {
         fetchTodoTags().then(() => fetchTodos());
+        if (isKanban()) closeSidebar();
     }
-    if (isKanban()) closeSidebar();
     // ファビコンとタイトルの更新
     updatePageMeta(section);
 }
@@ -293,12 +294,24 @@ function openTagPopup(anchorEl, noteId, checkedTagIds) {
 
 // ── タグナビ共通 ────────────────────────────
 function renderTagNav() {
-    const tags = !isNote() ? allTodoTags : allNoteTags;
-    const activeId = !isNote() ? activeTodoTagId : activeNoteTagId;
-    const items = isNote() ? allNotes
-        : isKanban() ? allTodos.filter(t => !t.recurrence)
-            : allTodos;
-    const tagsApi = !isNote() ? TODO_TAGS_API : NOTE_TAGS_API;
+    if(isNote()){
+        // メモページ
+        renderNoteTagNav() 
+    } else {
+        // TODOとカンバン
+        renderTodoTagNav() 
+    }
+}
+
+/**
+ * メモのタグナビ
+ * 
+ */
+function renderNoteTagNav() {
+    const tags = allNoteTags;
+    const activeId = activeNoteTagId;
+    const items = allNotes;
+    const tagsApi = NOTE_TAGS_API;
     const ul = $ge('tagList');
     ul.innerHTML = '';
 
@@ -308,14 +321,50 @@ function renderTagNav() {
     allItem.addEventListener('click', () => selectTag(null));
     ul.appendChild(allItem);
 
-    if (activeSection === 'note') {
-        const archItem = document.createElement('li');
-        archItem.className = `tag-item ${activeId === 'archived' ? 'active' : ''}`;
-        archItem.innerHTML = `<span class="tag-dot" style="background:#cce5fd"></span><span class="tag-item-name">アーカイブ済み</span>`;
-        archItem.addEventListener('click', () => selectTag('archived'));
-        ul.appendChild(archItem);
-    }
+    // アーカイブ済みの表示欄作成
+    const archItem = document.createElement('li');
+    archItem.className = `tag-item ${activeId === 'archived' ? 'active' : ''}`;
+    archItem.innerHTML = `<span class="tag-dot" style="background:#cce5fd"></span><span class="tag-item-name">アーカイブ済み</span>`;
+    archItem.addEventListener('click', () => selectTag('archived'));
+    ul.appendChild(archItem);
+    
+    // タグリストの画面反映
+    renderTagsList(tags, items, activeId, tagsApi, ul);
 
+}
+
+/**
+ * TODOとカンバンのタグナビ
+ * 
+ */
+function renderTodoTagNav() {
+    const tags = allTodoTags;
+    const activeId = activeTodoTagId;
+    const items = isKanban() ? allTodos.filter(t => !t.recurrence) : allTodos;
+    const tagsApi = TODO_TAGS_API ;
+    const ul = $ge('tagList');
+    ul.innerHTML = '';
+
+    const allItem = document.createElement('li');
+    allItem.className = `tag-item ${activeId === null ? 'active' : ''}`;
+    allItem.innerHTML = `<span class="tag-dot"></span><span class="tag-item-name">すべて</span>`;
+    allItem.addEventListener('click', () => selectTag(null));
+    ul.appendChild(allItem);
+    // タグリストの画面反映
+    renderTagsList(tags, items, activeId, tagsApi, ul);
+
+}
+
+/**
+ * タグの内容をリストに反映
+ * 
+ * @param {data[]} tags 
+ * @param {data[]} items 
+ * @param {number} activeId 
+ * @param {string} tagsApi 
+ * @param {Element} ul 
+ */
+function renderTagsList(tags, items, activeId, tagsApi, ul) {
     tags.forEach(tag => {
         const count = items.filter(item => !item.done).filter(item => item.tags.some(t => t.id === tag.id)).length;
         const li = document.createElement('li');
@@ -327,7 +376,7 @@ function renderTagNav() {
         dot.title = '色を変更';
         dot.addEventListener('click', e => {
             e.stopPropagation();
-            openSwatchPopup(dot, 5, TAG_PRESET_COLORS, tag.color, async color => {
+            openSwatchPopup(dot, 5, TAG_PRESET_COLORS, tag.color, async (color) => {
                 await apiFetch(`${tagsApi}/${tag.id}/color`, {
                     method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
                     body: JSON.stringify({ color }),
@@ -378,7 +427,7 @@ async function addTag() {
         body: JSON.stringify({ name, color }),
     });
     $ge('tagInput').value = '';
-    if (activeSection !== 'note') await fetchTodoTags();
+    if (isNote()) await fetchTodoTags();
     else await fetchNoteTags();
 }
 
@@ -389,18 +438,43 @@ async function addTag() {
  * @returns 
  */
 async function deleteTag(tagId) {
-    const tags = activeSection !== 'note' ? allTodoTags : allNoteTags;
-    const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
+    if(isNote()){
+        deleteNoteTag(tagId);
+    } else {
+        deleteTodoTag(tagId);
+    }
+}
+
+/**
+ * TODO用のタグ削除
+ * 
+ * @param {number} tagId 
+ * @returns 
+ */
+async function deleteTodoTag(tagId){
+    const tags = allTodoTags ;
+    const tagsApi = TODO_TAGS_API ;
     const tag = tags.find(t => t.id === tagId);
     if (!confirm(`タグ「${tag?.name}」を削除しますか？`)) return;
     await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
-    if (activeSection !== 'note') {
-        if (activeTodoTagId === tagId) activeTodoTagId = null;
-        await Promise.all([fetchTodoTags(), fetchTodos()]);
-    } else {
-        if (activeNoteTagId === tagId) activeNoteTagId = null;
-        await Promise.all([fetchNoteTags(), fetchNotes()]);
-    }
+    if (activeTodoTagId === tagId) activeTodoTagId = null;
+    await Promise.all([fetchTodoTags(), fetchTodos()]);
+}
+
+/**
+ * メモ用のタグ削除
+ * 
+ * @param {number} tagId 
+ * @returns 
+ */
+async function deleteNoteTag(tagId){
+    const tags = allNoteTags;
+    const tagsApi =NOTE_TAGS_API;
+    const tag = tags.find(t => t.id === tagId);
+    if (!confirm(`タグ「${tag?.name}」を削除しますか？`)) return;
+    await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
+    if (activeNoteTagId === tagId) activeNoteTagId = null;
+    await Promise.all([fetchNoteTags(), fetchNotes()]);
 }
 
 // ── TODO タグ ───────────────────────────────
@@ -786,7 +860,7 @@ function startInlineEdit(titleEl, t) {
                 if (idx !== -1) allTodos[idx] = updated;
                 if (selectedTodoId === t.id) updateSidebar(updated, false);
             } catch {
-                // ここはうっとうしいので画面に出さない。
+                // ここはうっとうしいのでエラーが出ても画面に出さない。
              }
         }
         render(allTodos);
@@ -814,6 +888,10 @@ function parseRecurrence(rec) {
     }
 }
 
+/**
+ * サイドバーで入力されたTODO繰り返し情報をJSONにして返す
+ * @returns TODO繰り返し情報のJSON
+ */
 function getRecurrenceValue() {
     const type = $ge('sb-recurrence').value;
     if (!type) return null;
@@ -822,6 +900,14 @@ function getRecurrenceValue() {
     return JSON.stringify({ type, days, dates });
 }
 
+/**
+ * サイドバーに引数の内容の繰り返し情報を反映
+ * 
+ * @param {number} type 
+ * @param {number[]} days 
+ * @param {number[]} dates 
+ * @param {*} end 
+ */
 function updateRecurrenceUI(type, days, dates, end) {
     const extra = $ge('sb-recurrence-extra');
     extra.classList.toggle('active', !!type);
@@ -833,6 +919,13 @@ function updateRecurrenceUI(type, days, dates, end) {
         b.classList.toggle('on', (dates || []).includes(+b.dataset.date)));
 }
 
+/**
+ * サイドバーにTODOの情報を反映する。
+ * TODOが新規(DB未登録)の場合と既存(DB登録済)の場合がある。
+ * 
+ * @param {*} t 
+ * @param {*} isNew 
+ */
 function updateSidebar(t, isNew) {
     originalTask = isNew ? null : JSON.parse(JSON.stringify(t));
     $ge('sb-title').value = t.title ?? '';
@@ -859,12 +952,20 @@ function updateSidebar(t, isNew) {
     $ge('sidebar').classList.add('open');
 }
 
+/**
+ * TODOの入力内容自動反映タイマー起動
+ * @returns 
+ */
 function scheduleAutoSave() {
     if (selectedTodoId === null) return;
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(saveSelected, AUTO_SAVE_DEBOUNCE);
 }
 
+/**
+ * 
+ * @returns 
+ */
 function discardSidebar() {
     clearTimeout(autoSaveTimer);
     if (isNewMode) { closeSidebar(); return; }
@@ -873,7 +974,7 @@ function discardSidebar() {
 }
 
 /**
- * 
+ * 新規のTODOを作成するときの処理
  */
 async function openNewTodo() {
     // const title = $ge('titleInput').value.trim() || DEFAULT_TITLE;
@@ -891,6 +992,10 @@ async function openNewTodo() {
     $ge('sb-title').select();
 }
 
+/**
+ * TODO作成時のデフォルトの期限日時(現在日時の00:00)を生成して返す。
+ * @returns 現在日時の00:00
+ */
 function getDefaultDeadline() {
     const today = nowJST().slice(0, 10);
     const deadline = `${today}T00:00`;
@@ -1473,9 +1578,9 @@ $ge('tagInput').addEventListener('keydown', e => {
 const newTagColorBtn = $ge('newTagColorBtn');
 newTagColorBtn.style.background = todoSelectedColor;
 newTagColorBtn.addEventListener('click', () => {
-    const current = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
+    const current = isNote() ? todoSelectedColor : noteSelectedColor;
     openSwatchPopup(newTagColorBtn, 5, TAG_PRESET_COLORS, current, color => {
-        if (activeSection !== 'note') todoSelectedColor = color;
+        if (!isNote()) todoSelectedColor = color;
         else noteSelectedColor = color;
         newTagColorBtn.style.background = color;
     });
@@ -1561,8 +1666,8 @@ setInterval(() => {
     now = nowJST().slice(0, 16);
     if (newDate !== today) {
         today = newDate;
-        if (activeSection !== 'note') fetchTodos();
-    } else if (activeSection !== 'note') {
+        if (!isNote()) fetchTodos();
+    } else if (!isNote()) {
         render(allTodos);
     }
 }, 60000);
