@@ -227,8 +227,7 @@ def update_todo(todo_id,
     更新に成功した場合は更新されたTODOを返し、TODOが見つからない場合はNoneを返す
     '''
     with get_todo_conn() as conn:
-        current = conn.execute("SELECT recurrence_id FROM todos WHERE id = ?",
-                               (todo_id, )).fetchone()
+        current = conn.execute("SELECT recurrence_id FROM todos WHERE id = ?",(todo_id, )).fetchone()
         if current:
             if recurrence and not current["recurrence_id"]:
                 recurrence_id = todo_id
@@ -241,16 +240,13 @@ def update_todo(todo_id,
 
         conn.execute(
             "UPDATE todos SET title = ?, deadline = ?, memo = ?, url = ?, recurrence = ?, recurrence_id = ? WHERE id = ?",
-            (title, deadline, memo, urls_to_json(urls), recurrence,
-             recurrence_id, todo_id))
-        conn.execute("DELETE FROM todo_tag_links WHERE todo_id = ?",
-                     (todo_id, ))
+            (title, deadline, memo, urls_to_json(urls), recurrence, recurrence_id, todo_id))
+        conn.execute("DELETE FROM todo_tag_links WHERE todo_id = ?", (todo_id, ))
         for tid in tag_ids:
             conn.execute(
                 "INSERT OR IGNORE INTO todo_tag_links (todo_id, tag_id) VALUES (?, ?)",
                 (todo_id, tid))
-        row = conn.execute("SELECT * FROM todos WHERE id = ?",
-                           (todo_id, )).fetchone()
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id, )).fetchone()
         if row is None:
             return None
         todo = dict(row)

@@ -20,10 +20,8 @@ def create_tag(conn, tag_table, name, color):
     tag_tableで指定されたタグテーブルに、name、colorで指定された内容のタグを作成する。
     作成に成功した場合は作成されたタグを返す
     '''
-    cur = conn.execute(f"INSERT INTO {tag_table} (name, color) VALUES (?, ?)",
-                       (name, color))
-    row = conn.execute(f"SELECT * FROM {tag_table} WHERE id = ?",
-                       (cur.lastrowid, )).fetchone()
+    cur = conn.execute(f"INSERT INTO {tag_table} (name, color) VALUES (?, ?)",(name, color))
+    row = conn.execute(f"SELECT * FROM {tag_table} WHERE id = ?", (cur.lastrowid, )).fetchone()
     return dict(row)
 
 
