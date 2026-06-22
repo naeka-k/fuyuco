@@ -418,18 +418,48 @@ async function selectTag(tagId) {
  * @returns 
  */
 async function addTag() {
-    const name = $ge('tagInput').value.trim();
+    if(isNote()){
+        addNoteTag();
+    } else {
+        addTodoTag();
+    }
+}
+
+/**
+ * TODO用タグの追加
+ * @returns 
+ * 
+ */
+async function addTodoTag() {
     const name = $ge('tagInput').value.trim();
     if (!name) return;
-    const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
-    const color = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
+    const tagsApi = TODO_TAGS_API ;
+    const color = todoSelectedColor;
     await apiFetch(tagsApi, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, color }),
     });
     $ge('tagInput').value = '';
-    if (isNote()) await fetchTodoTags();
-    else await fetchNoteTags();
+    await fetchTodoTags();
+}
+
+/**
+ * メモ用タグの追加
+ * @returns 
+ * 
+ */
+async function addNoteTag() {
+    const name = $ge('tagInput').value.trim();
+    if (!name) return;
+    const tagsApi =  NOTE_TAGS_API;
+    const color = noteSelectedColor;
+    await apiFetch(tagsApi, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, color }),
+    });
+    $ge('tagInput').value = '';
+    
+    await fetchTodoTags();
 }
 
 /**
