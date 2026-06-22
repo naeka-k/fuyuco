@@ -152,6 +152,7 @@ const KANBAN_SORT_OPTS = [
 // ── 共通状態 ──
 let activeSection = 'todo';
 let activePopup = null;
+let isTagNavCollapsed = false;
 
 // ── TODO 状態 ──
 let allTodos = [];
@@ -210,6 +211,17 @@ function updatePageMeta(section) {
     document.title = titleMap[section] || 'fuyuco';
     const faviconEl = $ge('favicon');
     if (faviconEl) faviconEl.href = iconMap[section] || 'todo.png';
+}
+
+/**
+ * タグ表示の左サイドバーの表示／非表示切り替え
+ * 
+ */
+function toggleTagNav() {
+    isTagNavCollapsed = !isTagNavCollapsed;
+    const tagNav = $ge('tagNav');
+    const button = $ge('toggleTagNavBtn');
+    if (tagNav) tagNav.classList.toggle('collapsed', isTagNavCollapsed);
 }
 
 // ── ポップアップ共通 ────────────────────────

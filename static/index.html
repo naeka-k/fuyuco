@@ -9,6 +9,7 @@
 </head>
 <body>
   <div class="tab-bar">
+    <button class="btn-collapse" id="tag-nav-menu-btn" type="button" onclick="toggleTagNav()">☰</button>
     <button class="tab active" id="tab-todo" onclick="switchSection('todo')">TODO</button>
     <button class="tab" id="tab-kanban" onclick="switchSection('kanban')">カンバン</button>
     <button class="tab" id="tab-note" onclick="switchSection('note')">メモ</button>
@@ -16,7 +17,7 @@
 
   <div class="layout">
     <!-- タグナビ（左） -->
-    <div class="tag-nav">
+    <div class="tag-nav" id="tagNav">
       <div class="tag-nav-title">タグ</div>
       <ul class="tag-list" id="tagList"></ul>
       <div class="tag-add-row">
