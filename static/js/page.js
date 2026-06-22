@@ -419,6 +419,7 @@ async function selectTag(tagId) {
  */
 async function addTag() {
     const name = $ge('tagInput').value.trim();
+    const name = $ge('tagInput').value.trim();
     if (!name) return;
     const tagsApi = activeSection !== 'note' ? TODO_TAGS_API : NOTE_TAGS_API;
     const color = activeSection !== 'note' ? todoSelectedColor : noteSelectedColor;
