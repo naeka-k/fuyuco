@@ -190,7 +190,7 @@ body {
 
 /* ── サイドバー（右） ── */
 .sidebar {
-  width: 300px; flex-shrink: 0; margin-left: 12px;
+  width: 500px; flex-shrink: 0; margin-left: 12px;
   background: #fff; border-radius: 16px; box-shadow: 0 4px 20px #00000020;
   display: none; flex-direction: column;
   align-self: stretch; overflow: hidden;
