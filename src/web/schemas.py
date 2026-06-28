@@ -78,3 +78,9 @@ class TagColorUpdate(BaseModel):
     colorフィールドは必須である
     '''
     color: str
+
+class TodoMemoCreate(BaseModel):
+    content: str = ""
+
+class TodoMemoUpdate(BaseModel):
+    content: str = ""

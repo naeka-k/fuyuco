@@ -60,6 +60,26 @@ def init_db():
                 PRIMARY KEY (todo_id, tag_id)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS todo_memos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                todo_id INTEGER NOT NULL,
+                content TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+            )
+        """)
+        rows = conn.execute(
+            "SELECT id, memo FROM todos WHERE memo IS NOT NULL AND memo != ''"
+        ).fetchall()
+        for row in rows:
+            existing = conn.execute(
+                "SELECT id FROM todo_memos WHERE todo_id = ?", (row["id"],)
+            ).fetchone()
+            if not existing:
+                conn.execute(
+                    "INSERT INTO todo_memos (todo_id, content) VALUES (?, ?)",
+                    (row["id"], row["memo"])
+                )
 
     with get_note_conn() as conn:
         conn.execute("""

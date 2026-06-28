@@ -84,8 +84,9 @@
     <!-- タスク詳細サイドバー -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-body">
-        <div class="field">
+        <div class="field sb-title-field">
           <label>タイトル</label>
+          <button class="btn-trash-del" id="sb-del-btn" onclick="delSelected()" title="削除">🗑</button>
           <input type="text" id="sb-title" />
         </div>
         <div class="field" id="sb-status-field">
@@ -170,13 +171,12 @@
           <button type="button" id="sb-tag-btn" class="btn-url-add">＋ タグを追加</button>
         </div>
         <div class="field">
-          <label>メモ</label>
-          <textarea id="sb-memo" placeholder="メモを入力..."></textarea>
+          <div class="memo-label-row">
+            <label>メモ</label>
+            <button type="button" class="btn-memo-add" id="sb-memo-add-btn">＋ 追加</button>
+          </div>
+          <div id="sb-memo-list"></div>
         </div>
-      </div>
-      <div class="sidebar-actions">
-        <button class="btn-discard" id="sb-discard-btn" onclick="discardSidebar()">破棄</button>
-        <button class="btn-sidebar-del" id="sb-del-btn" onclick="delSelected()">削除</button>
       </div>
     </div>
   </div>

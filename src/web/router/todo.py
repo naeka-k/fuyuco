@@ -4,7 +4,7 @@ TODO関連のAPIエンドポイントを定義するモジュール
 各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
 '''
 from fastapi import APIRouter, HTTPException, Query
-from ..schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate
+from ..schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate, TodoMemoCreate, TodoMemoUpdate
 from ..repository import (
     get_all_todos,
     create_todo,
@@ -16,6 +16,10 @@ from ..repository import (
     create_todo_tag,
     update_todo_tag_color,
     delete_todo_tag,
+    get_todo_memos,
+    create_todo_memo,
+    update_todo_memo,
+    delete_todo_memo,
 )
 
 router = APIRouter()
@@ -132,4 +136,28 @@ def delete_todo_tag_endpoint(tag_id: int):
     削除に成功した場合は204 No Contentを返し、TODOタグが見つからない場合は404 Not Foundを返す
     '''
     if not delete_todo_tag(tag_id):
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.get("/api/todos/{todo_id}/memos")
+def list_todo_memos(todo_id: int):
+    return get_todo_memos(todo_id)
+
+
+@router.post("/api/todos/{todo_id}/memos", status_code=201)
+def create_todo_memo_endpoint(todo_id: int, body: TodoMemoCreate):
+    return create_todo_memo(todo_id, body.content)
+
+
+@router.put("/api/todos/{todo_id}/memos/{memo_id}")
+def update_todo_memo_endpoint(todo_id: int, memo_id: int, body: TodoMemoUpdate):
+    memo = update_todo_memo(memo_id, body.content)
+    if memo is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return memo
+
+
+@router.delete("/api/todos/{todo_id}/memos/{memo_id}", status_code=204)
+def delete_todo_memo_endpoint(todo_id: int, memo_id: int):
+    if not delete_todo_memo(memo_id):
         raise HTTPException(status_code=404, detail="Not found")

@@ -13,15 +13,19 @@ from .note_repo import (
 )
 from .todo_repo import (
     create_todo,
+    create_todo_memo,
     create_todo_tag,
     delete_todo,
+    delete_todo_memo,
     delete_todo_tag,
     generate_recurring_todos,
     get_all_todo_tags,
     get_all_todos,
+    get_todo_memos,
     set_todo_status,
     toggle_todo,
     update_todo,
+    update_todo_memo,
     update_todo_tag_color,
 )
 
@@ -38,14 +42,18 @@ __all__ = [
     "update_note",
     "update_note_tag_color",
     "create_todo",
+    "create_todo_memo",
     "create_todo_tag",
     "delete_todo",
+    "delete_todo_memo",
     "delete_todo_tag",
     "generate_recurring_todos",
     "get_all_todo_tags",
     "get_all_todos",
+    "get_todo_memos",
     "set_todo_status",
     "toggle_todo",
     "update_todo",
+    "update_todo_memo",
     "update_todo_tag_color",
 ]

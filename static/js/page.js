@@ -176,6 +176,9 @@ let activeNoteTagId = null;
 let noteSaveTimers = {};
 let noteSelectedColor = TAG_PRESET_COLORS[5];
 
+// ── TODOメモ状態 ──
+let memoSaveTimers = {};
+
 // ── セクション切替 ──────────────────────────
 function isTodo() {
     return activeSection === 'todo';
@@ -826,7 +829,8 @@ function renderKanban() {
         $ge(`k-count-${status}`).textContent = cols[status].length;
         container.innerHTML = '';
         cols[status].forEach(t => {
-            const memo = t.memo ? (t.memo.length > MEMO_TRUNCATE_LEN ? t.memo.slice(0, MEMO_TRUNCATE_LEN) + '…' : t.memo) : '';
+            const memoText = t.latest_memo ?? t.memo ?? '';
+            const memo = memoText.length > MEMO_TRUNCATE_LEN ? memoText.slice(0, MEMO_TRUNCATE_LEN) + '…' : memoText;
             const dl = fmtDate(t.deadline);
             const isOverdue = t.deadline && t.deadline < now && status !== 'done';
             const isToday = deadlineDatePart(t.deadline) === today && status !== 'done';
@@ -935,7 +939,7 @@ function render(todos) {
             <div class="check ${status === 'done' ? 'checked' : status === 'doing' ? 'doing' : ''}" onclick="event.stopPropagation(); toggleById(${t.id})"></div>
             <div class="card-info">
             <div class="card-title">${escHtml(t.title)}</div>
-            ${t.memo ? `<div class="card-memo">${escHtml(t.memo)}</div>` : ''}
+            ${(t.latest_memo ?? t.memo) ? `<div class="card-memo">${escHtml(t.latest_memo ?? t.memo)}</div>` : ''}
             ${tagPills ? `<div class="card-tags">${tagPills}</div>` : ''}
             </div>
             ${t.recurrence ? `<span class="card-recurrence">🔁</span>` : ''}
@@ -1093,10 +1097,10 @@ function updateSidebar(t, isNew) {
     urlContainer.innerHTML = '';
     (t.urls || []).forEach(u => addUrlInput(u));
     updateUrlAddBtn();
-    $ge('sb-memo').value = t.memo ?? '';
+    $ge('sb-memo-list').innerHTML = '';
+    loadTodoMemos(t.id);
     $ge('sb-status-field').style.display = '';
     $ge('sb-del-btn').style.display = '';
-    $ge('sb-discard-btn').style.display = 'none';
     const currentStatus = t.status || (t.done ? 'done' : 'todo');
     $qs(`input[name="sb-status"][value="${currentStatus}"]`).checked = true;
     sidebarTagIds = (t.tags ?? []).map(tg => tg.id);
@@ -1168,6 +1172,8 @@ function getDefaultDeadline() {
 function closeSidebar() {
     selectedTodoId = null;
     isNewMode = false;
+    Object.values(memoSaveTimers).forEach(t => clearTimeout(t));
+    memoSaveTimers = {};
     $ge('sidebar').classList.remove('open');
     render(allTodos);
 }
@@ -1184,7 +1190,6 @@ async function saveSelected() {
     const deadline = dlDate ? dlDate + 'T' + dlTime : null;
     const recurrence = getRecurrenceValue();
     const urls = getSidebarUrls();
-    const memo = $ge('sb-memo').value || null;
     const tag_ids = getSidebarCheckedTagIds();
 
     if (selectedTodoId === null) {
@@ -1192,18 +1197,144 @@ async function saveSelected() {
     }
     await apiFetch(`${TODO_API}/${selectedTodoId}`, {
         method: HTTP_METHOD_PUT, headers: JSON_HEADER,
-        body: JSON.stringify({ title, deadline, urls, memo, tag_ids, recurrence }),
+        body: JSON.stringify({ title, deadline, urls, tag_ids, recurrence }),
     });
     originalTask = {
-        ...originalTask, title, deadline, urls, memo,
+        ...originalTask, title, deadline, urls,
         tags: allTodoTags.filter(t => tag_ids.includes(t.id))
     };
     await fetchTodos();
 }
 
 /**
+ * TODOのメモ一覧を取得してサイドバーに表示する。
+ * @param {number} todoId
+ */
+async function loadTodoMemos(todoId) {
+    const res = await apiFetch(`${TODO_API}/${todoId}/memos`);
+    if (selectedTodoId !== todoId) {
+        return;
+    }
+    const memos = await res.json();
+    renderMemoList(todoId, memos);
+}
+
+/**
+ * TODOメモ一覧をDOMに描画する。
+ * @param {number} todoId
+ * @param {Array} memos
+ */
+function renderMemoList(todoId, memos) {
+    const container = $ge('sb-memo-list');
+    container.innerHTML = '';
+    memos.forEach((memo, index) => {
+        const entry = document.createElement('div');
+        entry.className = 'memo-entry';
+
+        const body = document.createElement('div');
+        body.className = 'memo-entry-body';
+
+        const ta = document.createElement('textarea');
+        ta.placeholder = 'メモを入力...';
+        ta.value = memo.content;
+        ta.addEventListener('input', () => {
+            scheduleMemoSave(memo.id, todoId, ta.value);
+        });
+
+        body.appendChild(ta);
+
+        const footer = document.createElement('div');
+        footer.className = 'memo-entry-footer';
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn-memo-del';
+        delBtn.title = '削除';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await apiFetch(`${TODO_API}/${todoId}/memos/${memo.id}`, {
+                method: HTTP_METHOD_DELETE,
+            });
+            entry.remove();
+        });
+
+        const ts = document.createElement('span');
+        ts.className = 'memo-entry-date';
+        ts.textContent = memo.created_at ? memo.created_at.slice(0, 10).replace(/-/g, '/') + ' ' + memo.created_at.slice(11, 16) : '';
+
+        footer.appendChild(delBtn);
+        footer.appendChild(ts);
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'memo-toggle-btn';
+
+        let expanded = (index === 0);
+
+        function applyState() {
+            if (expanded) {
+                body.style.display = '';
+                toggleBtn.textContent = '▲';
+                footer.style.cursor = '';
+            } else {
+                body.style.display = 'none';
+                toggleBtn.textContent = '▼';
+                footer.style.cursor = 'pointer';
+            }
+        }
+
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            expanded = !expanded;
+            applyState();
+        });
+
+        footer.addEventListener('click', () => {
+            if (!expanded) {
+                expanded = true;
+                applyState();
+            }
+        });
+
+        applyState();
+
+        entry.appendChild(body);
+        entry.appendChild(footer);
+        entry.appendChild(toggleBtn);
+
+        container.appendChild(entry);
+    });
+}
+
+/**
+ * TODOメモの自動保存タイマーをセットする。
+ * @param {number} memoId
+ * @param {number} todoId
+ * @param {string} content
+ */
+function scheduleMemoSave(memoId, todoId, content) {
+    if (memoSaveTimers[memoId]) {
+        clearTimeout(memoSaveTimers[memoId]);
+    }
+    memoSaveTimers[memoId] = setTimeout(async () => {
+        delete memoSaveTimers[memoId];
+        await apiFetch(`${TODO_API}/${todoId}/memos/${memoId}`, {
+            method: HTTP_METHOD_PUT,
+            headers: JSON_HEADER,
+            body: JSON.stringify({ content }),
+        });
+        const todo = allTodos.find(t => t.id === todoId);
+        if (todo) {
+            todo.latest_memo = content;
+            render(allTodos);
+        }
+    }, AUTO_SAVE_DEBOUNCE);
+}
+
+/**
  * 選択中のTODOの完了／未完の切り替え
- * @returns 
+ * @returns
  */
 async function toggleSelected() {
     if (selectedTodoId === null) {
@@ -1881,13 +2012,20 @@ newTagColorBtn.addEventListener('click', () => {
 /**
  * 画面のどこかをクリックしたときのイベント。
  * サイドバーを非表示にする。
- * 
+ *
  */
+let mousedownInSidebar = false;
+document.addEventListener('mousedown', e => {
+    mousedownInSidebar = !!e.target.closest('.sidebar');
+});
 document.addEventListener('click', e => {
     if (activeSection === 'note') {
         return;
     }
     if (!selectedTodoId && !isNewMode) {
+        return;
+    }
+    if (mousedownInSidebar) {
         return;
     }
     if (
@@ -1898,7 +2036,9 @@ document.addEventListener('click', e => {
         e.target.closest('.form-card') ||
         e.target.closest('.color-swatch-popup') ||
         e.target.closest('.tag-popup')
-    ) return;
+    ) {
+        return;
+    }
     closeSidebar();
 });
 
@@ -1961,12 +2101,27 @@ $ge('sb-recurrence').addEventListener('change', () => {
     scheduleAutoSave();
 });
 
-['sb-title', 'sb-memo', 'sb-deadline-date'].forEach(id => {
+['sb-title', 'sb-deadline-date'].forEach(id => {
     $ge(id).addEventListener('input', scheduleAutoSave);
 });
 $ge('sb-deadline-time').addEventListener('change', scheduleAutoSave);
 $ge('sb-tag-btn').addEventListener('click', openSidebarTagPopup);
 $ge('sb-url-add-btn').addEventListener('click', () => addUrlInput());
+$ge('sb-memo-add-btn').addEventListener('click', async () => {
+    if (selectedTodoId === null) {
+        return;
+    }
+    await apiFetch(`${TODO_API}/${selectedTodoId}/memos`, {
+        method: HTTP_METHOD_POST,
+        headers: JSON_HEADER,
+        body: JSON.stringify({ content: '' }),
+    });
+    await loadTodoMemos(selectedTodoId);
+    const firstTa = $ge('sb-memo-list').querySelector('textarea');
+    if (firstTa) {
+        firstTa.focus();
+    }
+});
 
 // 日付変更検知（日付が変わったらTODOを再取得して繰り返しタスクを生成）
 setInterval(() => {

@@ -73,8 +73,19 @@ def _attach_todo_tags(conn, todos):
     if not todos:
         return todos
     attach_tags(conn, todos, 'todo_tag_links', 'todo_id', 'todo_tags')
+    todo_ids = [t["id"] for t in todos]
+    placeholders = ','.join('?' * len(todo_ids))
+    memo_rows = conn.execute(
+        f"SELECT todo_id, content FROM todo_memos WHERE todo_id IN ({placeholders}) ORDER BY created_at DESC",
+        todo_ids
+    ).fetchall()
+    latest_memos = {}
+    for row in memo_rows:
+        if row["todo_id"] not in latest_memos:
+            latest_memos[row["todo_id"]] = row["content"]
     for todo in todos:
         todo["urls"] = parse_urls(todo.get("url"))
+        todo["latest_memo"] = latest_memos.get(todo["id"])
     return todos
 
 
@@ -251,6 +262,67 @@ def update_todo(todo_id,
             return None
         todo = dict(row)
         return _attach_todo_tags(conn, [todo])[0]
+
+
+def get_todo_memos(todo_id):
+    '''
+    TODOのメモを取得する関数。
+    複数ありうる。
+    順序は作成日の降順。
+    '''
+    with get_todo_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM todo_memos WHERE todo_id = ? ORDER BY created_at DESC",
+            (todo_id,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def create_todo_memo(todo_id, content):
+    '''
+    TODOのメモを新規追加する関数
+    作成に成功した場合はその内容を返す
+    '''
+
+    with get_todo_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO todo_memos (todo_id, content) VALUES (?, ?)",
+            (todo_id, content)
+        )
+        row = conn.execute(
+            "SELECT * FROM todo_memos WHERE id = ?", (cur.lastrowid,)
+        ).fetchone()
+        return dict(row)
+
+
+def update_todo_memo(memo_id, content):
+    '''
+    TODOのメモを更新する関数
+    更新に成功した場合はその内容を返す
+    '''
+    with get_todo_conn() as conn:
+        conn.execute(
+            "UPDATE todo_memos SET content = ? WHERE id = ?",
+            (content, memo_id)
+        )
+        row = conn.execute(
+            "SELECT * FROM todo_memos WHERE id = ?", (memo_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+
+def delete_todo_memo(memo_id):
+    '''
+    TODOのメモを削除する関数
+    1件以上削除に成功した場合はTrueを返し、見つからない場合はFalseを返す
+    '''
+    with get_todo_conn() as conn:
+        affected = conn.execute(
+            "DELETE FROM todo_memos WHERE id = ?", (memo_id,)
+        ).rowcount
+    return affected > 0
 
 
 def get_all_todo_tags():
