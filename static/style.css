@@ -371,7 +371,7 @@ body {
 .note-title {
   font-size: .95rem; font-weight: bold; color: #444;
   outline: none; min-height: 1.2em; word-break: break-word;
-  min-height: 2.4em;
+  min-height: 2.4em; padding-right: 4px;
 }
 .note-title:empty::before { content: attr(data-placeholder); color: #b5b5b5; pointer-events: none; }
 
@@ -384,11 +384,28 @@ body {
 
 .note-link { color: #3d82f0; text-decoration: underline; cursor: pointer; }
 
-.note-toolbar {
-  display: flex; gap: 1px; align-items: center; flex-wrap: wrap;
-  border-top: 1px solid rgba(0,0,0,.06); padding-top: 4px; margin-top: 2px;
+.note-header {
+  position: relative; flex-shrink: 0;
+}
+.note-card-actions {
+  position: absolute; top: 0; right: 0;
+  display: flex; gap: 1px; align-items: center;
   opacity: 0; transition: opacity .15s;
 }
+.note-card:hover .note-card-actions,
+.note-card:focus-within .note-card-actions { opacity: 1; }
+
+.note-tags-row {
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+}
+.note-tags-row .note-tags { flex: 1; }
+.note-toolbar {
+  position: fixed; z-index: 1000;
+  display: flex; gap: 1px; align-items: center;
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 4px 16px #00000022; padding: 6px 8px;
+}
+.note-edit-toggle-btn.active { background: #dceeff; color: #3d82f0; }
 .note-tool-btn {
   background: none; border: none; cursor: pointer; font-family: inherit;
   padding: 2px 5px; border-radius: 4px; color: #6e6e6e; font-size: .78rem; line-height: 1.4;
@@ -410,14 +427,6 @@ body {
   max-width: 12em; overflow: hidden; text-overflow: ellipsis; display: inline-block;
 }
 
-.note-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 4px; opacity: 0; transition: opacity .15s;
-}
-.note-card:hover .note-footer,
-.note-card:focus-within .note-footer { opacity: 1; }
-
-.note-footer-left { display: flex; gap: 2px; }
 .note-btn {
   background: none; border: none; cursor: pointer; font-size: 1rem;
   padding: 4px 6px; border-radius: 6px; color: #909090; transition: background .12s, color .12s;

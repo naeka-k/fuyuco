@@ -235,6 +235,7 @@ function openSwatchPopup(anchorEl, cols, colors, currentColor, onSelect) {
         sw.className = `color-swatch ${color === currentColor ? 'selected' : ''}`;
         sw.style.background = color;
         sw.style.border = color === '#ffffff' ? '2px solid #ddd' : '2px solid transparent';
+        sw.addEventListener('mousedown', e => e.preventDefault());
         sw.addEventListener('click', e => {
             e.stopPropagation();
             onSelect(color);
@@ -1193,6 +1194,7 @@ function renderNotes() {
         activeNoteTagId === 'archived' ? 'none' : '';
     const grid = $ge('notesGrid');
     const empty = $ge('note-empty');
+    document.querySelectorAll('body > .note-toolbar').forEach(t => t.remove());
     grid.innerHTML = '';
     if (allNotes.length === 0) { empty.style.display = ''; return; }
     empty.style.display = 'none';
@@ -1201,15 +1203,19 @@ function renderNotes() {
 
 /**
  * メモを構築する。
- * 
- * @param {data} note 
- * @returns 
+ *
+ * @param {data} note
+ * @returns
  */
 function buildCard(note) {
     const card = document.createElement('div');
     card.className = 'note-card';
     card.dataset.id = note.id;
     card.style.background = note.color;
+
+    // ── ヘッダー（タイトル＋右上アクションボタン）──
+    const headerEl = document.createElement('div');
+    headerEl.className = 'note-header';
 
     const titleEl = document.createElement('div');
     titleEl.className = 'note-title';
@@ -1218,6 +1224,99 @@ function buildCard(note) {
     titleEl.innerText = note.title;
     titleEl.addEventListener('input', () => scheduleNoteSave(note.id));
 
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'note-card-actions';
+
+    const colorBtn = document.createElement('button');
+    colorBtn.className = 'note-btn';
+    colorBtn.title = '色を変更';
+    colorBtn.textContent = '🎨';
+    colorBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openSwatchPopup(colorBtn, 5, NOTE_COLORS, note.color, async color => {
+            note.color = color;
+            card.style.background = color;
+            scheduleNoteSave(note.id);
+        });
+    });
+
+    const tagBtn = document.createElement('button');
+    tagBtn.className = 'note-btn';
+    tagBtn.title = 'タグを編集';
+    tagBtn.textContent = '🏷';
+    tagBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openTagPopup(tagBtn, note.id, new Set(note.tags.map(t => t.id)));
+    });
+
+    const archBtn = document.createElement('button');
+    archBtn.className = 'note-btn';
+    archBtn.title = activeNoteTagId === 'archived' ? 'アーカイブ解除' : 'アーカイブ';
+    archBtn.textContent = activeNoteTagId === 'archived' ? '↩' : '📦';
+    archBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        clearTimeout(noteSaveTimers[note.id]);
+        await apiFetch(`${NOTE_API}/${note.id}/archive`, { method: HTTP_METHOD_PATCH });
+        fetchNotes();
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'note-btn note-del-btn';
+    delBtn.title = '削除';
+    delBtn.textContent = '🗑';
+    delBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!confirm(DELETE_NOTE_MSG)) return;
+        clearTimeout(noteSaveTimers[note.id]);
+        await apiFetch(`${NOTE_API}/${note.id}`, { method: HTTP_METHOD_DELETE });
+        fetchNotes();
+    });
+
+    // ── 書式ツールバー（actionsElより先に作成してトグルボタンで参照）──
+    const toolbar = document.createElement('div');
+    toolbar.className = 'note-toolbar';
+
+    const editToggleBtn = document.createElement('button');
+    editToggleBtn.className = 'note-btn note-edit-toggle-btn';
+    editToggleBtn.title = '書式';
+    editToggleBtn.textContent = '✏️';
+    editToggleBtn.addEventListener('mousedown', e => e.preventDefault());
+    let closeToolbar = null;
+
+    editToggleBtn.addEventListener('click', () => {
+        if (closeToolbar) { closeToolbar(); return; }
+
+        toolbar.style.visibility = 'hidden';
+        document.body.appendChild(toolbar);
+        const tbRect = toolbar.getBoundingClientRect();
+        const btnRect = editToggleBtn.getBoundingClientRect();
+        toolbar.style.left = `${Math.max(4, btnRect.right - tbRect.width)}px`;
+        toolbar.style.top = `${btnRect.top - tbRect.height - 6}px`;
+        toolbar.style.visibility = '';
+        editToggleBtn.classList.add('active');
+
+        function outsideHandler(ev) {
+            if (toolbar.contains(ev.target) || ev.target === editToggleBtn || bodyEl.contains(ev.target)) return;
+            closeToolbar();
+        }
+        closeToolbar = () => {
+            toolbar.remove();
+            editToggleBtn.classList.remove('active');
+            document.removeEventListener('click', outsideHandler);
+            closeToolbar = null;
+        };
+        setTimeout(() => document.addEventListener('click', outsideHandler), 0);
+    });
+
+    actionsEl.appendChild(colorBtn);
+    actionsEl.appendChild(editToggleBtn);
+    actionsEl.appendChild(archBtn);
+    actionsEl.appendChild(delBtn);
+
+    headerEl.appendChild(titleEl);
+    headerEl.appendChild(actionsEl);
+
+    // ── 本文 ──
     const bodyEl = document.createElement('div');
     bodyEl.className = 'note-body';
     bodyEl.contentEditable = 'true';
@@ -1263,17 +1362,37 @@ function buildCard(note) {
                 return;
             }
         }
+        // リッチテキストからフォント指定・背景色を除去してペースト
+        const html = e.clipboardData.getData('text/html');
+        if (html) {
+            e.preventDefault();
+            const tmp = new DOMParser().parseFromString(html, 'text/html');
+            tmp.querySelectorAll('[style]').forEach(el => {
+                el.style.fontFamily = '';
+                el.style.fontSize = '';
+                el.style.backgroundColor = '';
+                if (!el.getAttribute('style').trim()) el.removeAttribute('style');
+            });
+            tmp.querySelectorAll('font[face]').forEach(el => el.removeAttribute('face'));
+            tmp.querySelectorAll('font[size]').forEach(el => el.removeAttribute('size'));
+            document.execCommand('insertHTML', false, DOMPurify.sanitize(tmp.body.innerHTML));
+            scheduleNoteSave(note.id);
+        }
     });
-
-    // ── 書式ツールバー ──
-    const toolbar = document.createElement('div');
-    toolbar.className = 'note-toolbar';
-    bodyEl.addEventListener('focus', () => { toolbar.style.opacity = '1'; });
-    //  bodyEl.addEventListener('blur', () => { toolbar.style.opacity = '0'; linkifyDom(bodyEl); });
     bodyEl.addEventListener('blur', () => {
-        toolbar.style.opacity = '0';
         bodyEl.innerHTML = linkifyText(DOMPurify.sanitize(bodyEl.innerHTML));
     });
+
+    // ── タグ行（タグボタン＋タグピル）──
+    const tagsEl = document.createElement('div');
+    tagsEl.className = 'note-tags';
+    tagsEl.id = `tags-${note.id}`;
+    renderNoteTags(tagsEl, note.tags);
+
+    const tagsRowEl = document.createElement('div');
+    tagsRowEl.className = 'note-tags-row';
+    tagsRowEl.appendChild(tagBtn);
+    tagsRowEl.appendChild(tagsEl);
 
     let savedRange = null;
     const toolDefs = [
@@ -1299,6 +1418,7 @@ function buildCard(note) {
         btn.title = def.title;
         btn.addEventListener('mousedown', e => e.preventDefault());
         if (def.isColor) {
+            // 文字色変更
             const ind = document.createElement('span');
             ind.style.cssText = 'border-bottom:2.5px solid #ef4444;padding-bottom:1px';
             ind.textContent = 'A';
@@ -1309,6 +1429,7 @@ function buildCard(note) {
                 openSwatchPopup(btn, 5, TEXT_COLORS, null, color => {
                     ind.style.borderBottomColor = color;
                     if (savedRange) {
+                        bodyEl.focus();
                         const s = window.getSelection();
                         s.removeAllRanges();
                         s.addRange(savedRange);
@@ -1319,6 +1440,7 @@ function buildCard(note) {
                 });
             });
         } else {
+            // 文字色変更以外
             if (def.style) btn.setAttribute('style', def.style);
             btn.textContent = def.label;
             btn.addEventListener('click', () => {
@@ -1329,79 +1451,23 @@ function buildCard(note) {
         toolbar.appendChild(btn);
     });
 
-    const tagsEl = document.createElement('div');
-    tagsEl.className = 'note-tags';
-    tagsEl.id = `tags-${note.id}`;
-    renderNoteTags(tagsEl, note.tags);
-
-    const footer = document.createElement('div');
-    footer.className = 'note-footer';
-    const left = document.createElement('div');
-    left.className = 'note-footer-left';
-
-    const colorBtn = document.createElement('button');
-    colorBtn.className = 'note-btn';
-    colorBtn.title = '色を変更';
-    colorBtn.textContent = '🎨';
-    colorBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        openSwatchPopup(colorBtn, 5, NOTE_COLORS, note.color, async color => {
-            note.color = color;
-            card.style.background = color;
-            scheduleNoteSave(note.id);
-        });
-    });
-
-    const tagBtn = document.createElement('button');
-    tagBtn.className = 'note-btn';
-    tagBtn.title = 'タグを編集';
-    tagBtn.textContent = '🏷';
-    tagBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        openTagPopup(tagBtn, note.id, new Set(note.tags.map(t => t.id)));
-    });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'note-btn note-del-btn';
-    delBtn.title = '削除';
-    delBtn.textContent = '🗑';
-    delBtn.addEventListener('click', async e => {
-        e.stopPropagation();
-        if (!confirm(DELETE_NOTE_MSG)) return;
-        clearTimeout(noteSaveTimers[note.id]);
-        await apiFetch(`${NOTE_API}/${note.id}`, { method: HTTP_METHOD_DELETE });
-        fetchNotes();
-    });
-
-    const archBtn = document.createElement('button');
-    archBtn.className = 'note-btn';
-    archBtn.title = activeNoteTagId === 'archived' ? 'アーカイブ解除' : 'アーカイブ';
-    archBtn.textContent = activeNoteTagId === 'archived' ? '↩' : '📦';
-    archBtn.addEventListener('click', async e => {
-        e.stopPropagation();
-        clearTimeout(noteSaveTimers[note.id]);
-        await apiFetch(`${NOTE_API}/${note.id}/archive`, { method: HTTP_METHOD_PATCH });
-        fetchNotes();
-    });
-
-    left.appendChild(colorBtn);
-    left.appendChild(tagBtn);
-    left.appendChild(archBtn);
-    footer.appendChild(left);
-    footer.appendChild(delBtn);
-
-    card.appendChild(titleEl);
+    card.appendChild(headerEl);
     card.appendChild(bodyEl);
-    card.appendChild(tagsEl);
-    card.appendChild(toolbar);
-    card.appendChild(footer);
+    card.appendChild(tagsRowEl);
 
     card.addEventListener('focusout', e => {
-        if (!card.contains(e.relatedTarget)) flushNoteSave(note.id);
+        if (!card.contains(e.relatedTarget)) {
+            flushNoteSave(note.id);
+            if (closeToolbar) closeToolbar();
+        }
     });
 
     // ── ドラッグ並び替え ──
     card.draggable = true;
+    [titleEl, bodyEl].forEach(el => {
+        el.addEventListener('focus', () => { card.draggable = false; });
+        el.addEventListener('blur',  () => { card.draggable = true; });
+    });
     card.addEventListener('dragstart', e => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', note.id);
