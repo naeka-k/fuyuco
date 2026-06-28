@@ -8,7 +8,10 @@ function showToast(msg) {
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(() => el.classList.add('toast-show'), 10);
-    setTimeout(() => { el.classList.remove('toast-show'); setTimeout(() => el.remove(), TOAST_FADE_DURATION); }, TOAST_SHOW_DURATION);
+    setTimeout(() => {
+        el.classList.remove('toast-show');
+        setTimeout(() => el.remove(), TOAST_FADE_DURATION);
+    }, TOAST_SHOW_DURATION);
 }
 
 /**
@@ -21,11 +24,11 @@ async function apiFetch(url, opts) {
     let res;
     try {
         res = await window.fetch(url, opts);
-    } catch(error) {
-        errorHandle(error, 'ネットワークエラーが発生しました', 'apiFetch failed.') 
+    } catch (error) {
+        errorHandle(error, 'ネットワークエラーが発生しました', 'apiFetch failed.')
     }
     if (!res.ok) {
-        errorHandle(new Error(), `エラーが発生しました（${res.status}）`, `apiFetch failed HTTP ${res.status}`) ;
+        errorHandle(new Error(), `エラーが発生しました（${res.status}）`, `apiFetch failed HTTP ${res.status}`);
     }
     return res;
 }
@@ -57,7 +60,7 @@ function $qsa(sel) {
  * @param {id} id 
  * @returns Element
  */
-function $ge(id){
+function $ge(id) {
     return document.getElementById(id);
 }
 
@@ -67,7 +70,7 @@ function $ge(id){
  * @param {string} msg0 
  * @param {string} msg1 
  */
-function errorHandle(error, msg0, msg1){
+function errorHandle(error, msg0, msg1) {
     showToast(msg0 + ' ' + msg1);
     throw error;
 }
@@ -174,9 +177,15 @@ let noteSaveTimers = {};
 let noteSelectedColor = TAG_PRESET_COLORS[5];
 
 // ── セクション切替 ──────────────────────────
-function isTodo() { return activeSection === 'todo'}; 
-function isNote() { return  activeSection === 'note'};
-function isKanban() { return  activeSection === 'kanban'};
+function isTodo() {
+    return activeSection === 'todo';
+}
+function isNote() {
+    return activeSection === 'note';
+}
+function isKanban() {
+    return activeSection === 'kanban';
+}
 
 /**
  * タブ選択時の表示処理。
@@ -200,7 +209,9 @@ function switchSection(section) {
         fetchNoteTags().then(() => fetchNotes());
     } else {
         fetchTodoTags().then(() => fetchTodos());
-        if (isKanban()) closeSidebar();
+        if (isKanban()) {
+            closeSidebar();
+        }
     }
     // ファビコンとタイトルの更新
     updatePageMeta(section);
@@ -210,7 +221,9 @@ function switchSection(section) {
 function updatePageMeta(section) {
     document.title = titleMap[section] || 'fuyuco';
     const faviconEl = $ge('favicon');
-    if (faviconEl) faviconEl.href = iconMap[section] || 'todo.png';
+    if (faviconEl) {
+        faviconEl.href = iconMap[section] || 'todo.png';
+    }
 }
 
 /**
@@ -221,12 +234,17 @@ function toggleTagNav() {
     isTagNavCollapsed = !isTagNavCollapsed;
     const tagNav = $ge('tagNav');
     const button = $ge('toggleTagNavBtn');
-    if (tagNav) tagNav.classList.toggle('collapsed', isTagNavCollapsed);
+    if (tagNav) {
+        tagNav.classList.toggle('collapsed', isTagNavCollapsed);
+    }
 }
 
 // ── ポップアップ共通 ────────────────────────
 function openSwatchPopup(anchorEl, cols, colors, currentColor, onSelect) {
-    if (activePopup) { activePopup.remove(); activePopup = null; }
+    if (activePopup) {
+        activePopup.remove();
+        activePopup = null; 
+    }
     const popup = document.createElement('div');
     popup.className = 'color-swatch-popup';
     popup.style.gridTemplateColumns = `repeat(${cols}, 22px)`;
@@ -251,7 +269,8 @@ function openSwatchPopup(anchorEl, cols, colors, currentColor, onSelect) {
     popup.style.top = `${rect.bottom + 4}px`;
     setTimeout(() => {
         document.addEventListener('click', function h() {
-            popup.remove(); activePopup = null;
+            popup.remove();
+            activePopup = null;
             document.removeEventListener('click', h);
         }, { once: true });
     }, 0);
@@ -266,8 +285,13 @@ function openSwatchPopup(anchorEl, cols, colors, currentColor, onSelect) {
  * @returns 
  */
 function openTagPopup(anchorEl, noteId, checkedTagIds) {
-    if (activePopup) { activePopup.remove(); activePopup = null; }
-    if (allNoteTags.length === 0) return;
+    if (activePopup) {
+        activePopup.remove();
+        activePopup = null;
+    }
+    if (allNoteTags.length === 0){
+        return;
+    }
     const popup = document.createElement('div');
     popup.className = 'tag-popup';
     allNoteTags.forEach(tag => {
@@ -298,7 +322,8 @@ function openTagPopup(anchorEl, noteId, checkedTagIds) {
     setTimeout(() => {
         document.addEventListener('click', function h(e) {
             if (!popup.contains(e.target)) {
-                popup.remove(); activePopup = null;
+                popup.remove();
+                activePopup = null;
                 document.removeEventListener('click', h);
             }
         });
@@ -307,12 +332,12 @@ function openTagPopup(anchorEl, noteId, checkedTagIds) {
 
 // ── タグナビ共通 ────────────────────────────
 function renderTagNav() {
-    if(isNote()){
+    if (isNote()) {
         // メモページ
-        renderNoteTagNav() 
+        renderNoteTagNav()
     } else {
         // TODOとカンバン
-        renderTodoTagNav() 
+        renderTodoTagNav()
     }
 }
 
@@ -340,7 +365,7 @@ function renderNoteTagNav() {
     archItem.innerHTML = `<span class="tag-dot" style="background:#cce5fd"></span><span class="tag-item-name">アーカイブ済み</span>`;
     archItem.addEventListener('click', () => selectTag('archived'));
     ul.appendChild(archItem);
-    
+
     // タグリストの画面反映
     renderTagsList(tags, items, activeId, tagsApi, ul);
 
@@ -354,7 +379,7 @@ function renderTodoTagNav() {
     const tags = allTodoTags;
     const activeId = activeTodoTagId;
     const items = isKanban() ? allTodos.filter(t => !t.recurrence) : allTodos;
-    const tagsApi = TODO_TAGS_API ;
+    const tagsApi = TODO_TAGS_API;
     const ul = $ge('tagList');
     ul.innerHTML = '';
 
@@ -394,8 +419,13 @@ function renderTagsList(tags, items, activeId, tagsApi, ul) {
                     method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
                     body: JSON.stringify({ color }),
                 });
-                if (!isNote()) { await fetchTodoTags(); fetchTodos(); }
-                else { await fetchNoteTags(); fetchNotes(); }
+                if (!isNote()) {
+                    await fetchTodoTags();
+                    fetchTodos(); 
+                } else {
+                    await fetchNoteTags();
+                    fetchNotes();
+                }
             });
         });
 
@@ -431,7 +461,7 @@ async function selectTag(tagId) {
  * @returns 
  */
 async function addTag() {
-    if(isNote()){
+    if (isNote()) {
         addNoteTag();
     } else {
         addTodoTag();
@@ -445,8 +475,10 @@ async function addTag() {
  */
 async function addTodoTag() {
     const name = $ge('tagInput').value.trim();
-    if (!name) return;
-    const tagsApi = TODO_TAGS_API ;
+    if (!name) { 
+        return;
+    } 
+    const tagsApi = TODO_TAGS_API;
     const color = todoSelectedColor;
     await apiFetch(tagsApi, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -463,15 +495,17 @@ async function addTodoTag() {
  */
 async function addNoteTag() {
     const name = $ge('tagInput').value.trim();
-    if (!name) return;
-    const tagsApi =  NOTE_TAGS_API;
+    if (!name) {
+        return;
+    }
+    const tagsApi = NOTE_TAGS_API;
     const color = noteSelectedColor;
     await apiFetch(tagsApi, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, color }),
     });
     $ge('tagInput').value = '';
-    
+
     await fetchTodoTags();
 }
 
@@ -482,7 +516,7 @@ async function addNoteTag() {
  * @returns 
  */
 async function deleteTag(tagId) {
-    if(isNote()){
+    if (isNote()) {
         deleteNoteTag(tagId);
     } else {
         deleteTodoTag(tagId);
@@ -495,13 +529,17 @@ async function deleteTag(tagId) {
  * @param {number} tagId 
  * @returns 
  */
-async function deleteTodoTag(tagId){
-    const tags = allTodoTags ;
-    const tagsApi = TODO_TAGS_API ;
+async function deleteTodoTag(tagId) {
+    const tags = allTodoTags;
+    const tagsApi = TODO_TAGS_API;
     const tag = tags.find(t => t.id === tagId);
-    if (!confirm(`タグ「${tag?.name}」を削除しますか？`)) return;
+    if (!confirm(`タグ「${tag?.name}」を削除しますか？`)){
+        return;
+    }
     await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
-    if (activeTodoTagId === tagId) activeTodoTagId = null;
+    if (activeTodoTagId === tagId){
+        activeTodoTagId = null;
+    }
     await Promise.all([fetchTodoTags(), fetchTodos()]);
 }
 
@@ -511,13 +549,17 @@ async function deleteTodoTag(tagId){
  * @param {number} tagId 
  * @returns 
  */
-async function deleteNoteTag(tagId){
+async function deleteNoteTag(tagId) {
     const tags = allNoteTags;
-    const tagsApi =NOTE_TAGS_API;
+    const tagsApi = NOTE_TAGS_API;
     const tag = tags.find(t => t.id === tagId);
-    if (!confirm(`タグ「${tag?.name}」を削除しますか？`)) return;
+    if (!confirm(`タグ「${tag?.name}」を削除しますか？`)){
+        return;
+    }
     await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
-    if (activeNoteTagId === tagId) activeNoteTagId = null;
+    if (activeNoteTagId === tagId){
+        activeNoteTagId = null;
+    }
     await Promise.all([fetchNoteTags(), fetchNotes()]);
 }
 
@@ -527,8 +569,8 @@ async function fetchTodoTags() {
         const res = await apiFetch(TODO_TAGS_API);
         allTodoTags = await res.json();
         renderTagNav();
-    } catch(error) {
-        errorHandle(error, 'TODOタグの取得に失敗しました', 'fetchTodoTags failed.') 
+    } catch (error) {
+        errorHandle(error, 'TODOタグの取得に失敗しました', 'fetchTodoTags failed.')
     }
 }
 
@@ -550,8 +592,13 @@ function renderSidebarSelectedTags() {
 
 function openSidebarTagPopup() {
     const anchorEl = $ge('sb-tag-btn');
-    if (activePopup) { activePopup.remove(); activePopup = null; }
-    if (allTodoTags.length === 0) return;
+    if (activePopup) {
+        activePopup.remove();
+        activePopup = null;
+    }
+    if (allTodoTags.length === 0) {
+        return;
+    }
     const popup = document.createElement('div');
     popup.className = 'tag-popup';
     allTodoTags.forEach(tag => {
@@ -588,7 +635,8 @@ function openSidebarTagPopup() {
     setTimeout(() => {
         document.addEventListener('click', function h(e) {
             if (!popup.contains(e.target) && e.target !== anchorEl) {
-                popup.remove(); activePopup = null;
+                popup.remove();
+                activePopup = null;
                 document.removeEventListener('click', h);
             }
         });
@@ -602,7 +650,9 @@ function getSidebarCheckedTagIds() {
 // ── サイドバーURL管理 ────────────────────────
 function addUrlInput(value = '') {
     const container = $ge('sb-urls');
-    if (container.children.length >= 5) return;
+    if (container.children.length >= 5) {
+        return;
+    }
     const row = document.createElement('div');
     row.className = 'sb-url-row';
     const input = document.createElement('input');
@@ -614,7 +664,12 @@ function addUrlInput(value = '') {
     del.type = 'button';
     del.className = 'sb-url-del';
     del.textContent = '✕';
-    del.addEventListener('click', e => { e.stopPropagation(); row.remove(); updateUrlAddBtn(); scheduleAutoSave(); });
+    del.addEventListener('click', e => {
+        e.stopPropagation();
+        row.remove();
+        updateUrlAddBtn();
+        scheduleAutoSave();
+    });
     row.appendChild(input);
     row.appendChild(del);
     container.appendChild(row);
@@ -641,10 +696,14 @@ async function fetchTodos() {
         renderTagNav();
         if (selectedTodoId !== null) {
             const t = allTodos.find(t => t.id === selectedTodoId);
-            if (t) updateSidebar(t, false); else closeSidebar();
+            if (t) {
+                updateSidebar(t, false);
+            } else {
+                closeSidebar();
+            }
         }
-    } catch(error) {
-        errorHandle(error, 'TODOの取得に失敗しました','fetchTodos failed.')
+    } catch (error) {
+        errorHandle(error, 'TODOの取得に失敗しました', 'fetchTodos failed.')
     }
 }
 
@@ -668,18 +727,26 @@ function sortedTodos(todos) {
     });
 }
 
-function deadlineDatePart(dl) { return dl ? dl.slice(0, 10) : null; }
-function fmtDate(d) { return d ? d.slice(0, 10).replace(/-/g, '/') : ''; }
+function deadlineDatePart(dl) {
+    return dl ? dl.slice(0, 10) : null;
+}
+function fmtDate(d) {
+    return d ? d.slice(0, 10).replace(/-/g, '/') : '';
+}
 
 function groupByDeadline(todos) {
     const map = new Map();
     sortedTodos(todos.filter(t => !t.done)).forEach(t => {
         const key = deadlineDatePart(t.deadline) ?? '__none__';
-        if (!map.has(key)) map.set(key, []);
+        if (!map.has(key)) {
+            map.set(key, []);
+        }
         map.get(key).push(t);
     });
     const done = todos.filter(t => t.done);
-    if (done.length > 0) map.set('__done__', done);
+    if (done.length > 0) {
+        map.set('__done__', done);
+    }
     return map;
 }
 
@@ -689,10 +756,18 @@ function groupByDeadline(todos) {
  * @returns 
  */
 function groupLabel(key) {
-    if (key === '__done__') return { text: '完了済み', cls: '' };
-    if (key === '__none__') return { text: '期限なし', cls: '' };
-    if (key < today) return { text: `${fmtDate(key)}（期限切れ）`, cls: 'overdue' };
-    if (key === today) return { text: `${fmtDate(key)}（今日）`, cls: 'today' };
+    if (key === '__done__') {
+        return { text: '完了済み', cls: '' };
+    }
+    if (key === '__none__') {
+        return { text: '期限なし', cls: '' };
+    }
+    if (key < today) {
+        return { text: `${fmtDate(key)}（期限切れ）`, cls: 'overdue' };
+    }
+    if (key === today) {
+        return { text: `${fmtDate(key)}（今日）`, cls: 'today' };
+    }
     return { text: fmtDate(key), cls: '' };
 }
 
@@ -800,7 +875,10 @@ function render(todos) {
     const list = $ge('list');
     const empty = $ge('todo-empty');
     list.innerHTML = '';
-    if (todos.length === 0) { empty.style.display = ''; return; }
+    if (todos.length === 0) {
+        empty.style.display = '';
+        return;
+    }
     empty.style.display = 'none';
 
     groupByDeadline(todos).forEach((items, key) => {
@@ -810,9 +888,14 @@ function render(todos) {
         if (key === '__done__') {
             label.classList.add('group-label-toggle');
             label.innerHTML = `<span>${text}（${items.length}件）</span><span class="done-arrow">${showDone ? '▼' : '▶'}</span>`;
-            label.addEventListener('click', () => { showDone = !showDone; render(allTodos); });
+            label.addEventListener('click', () => {
+                showDone = !showDone;
+                render(allTodos);
+            });
             list.appendChild(label);
-            if (!showDone) return;
+            if (!showDone) {
+                return;
+            }
         } else {
             label.textContent = text;
             list.appendChild(label);
@@ -836,8 +919,15 @@ function render(todos) {
 
             const recLabelMap = { daily: '毎日', weekly: '毎週', monthly: '毎月' };
             function recLabel(r) {
-                if (!r) return '';
-                try { const p = JSON.parse(r); return recLabelMap[p.type] || p.type; } catch { return recLabelMap[r] || r; }
+                if (!r) {
+                    return '';
+                }
+                try {
+                    const p = JSON.parse(r);
+                    return recLabelMap[p.type] || p.type;
+                } catch {
+                    return recLabelMap[r] || r;
+                }
             }
             const card = document.createElement('div');
             card.className = cardCls;
@@ -854,14 +944,16 @@ function render(todos) {
             `;
             card.addEventListener('click', () => selectTodo(t.id));
             card.querySelector('.card-title').addEventListener('click', e => {
-                if (t.id !== selectedTodoId) return;
+                if (t.id !== selectedTodoId) {
+                    return;
+                }
                 e.stopPropagation();
                 startInlineEdit(e.currentTarget, t);
             });
             list.appendChild(card);
         });
     });
-    if (isKanban()){
+    if (isKanban()) {
         renderKanban();
     }
 }
@@ -889,7 +981,9 @@ function startInlineEdit(titleEl, t) {
     input.addEventListener('click', e => e.stopPropagation());
     let done = false;
     async function save() {
-        if (done) return;
+        if (done) {
+            return;
+        }
         done = true;
         const newTitle = input.value.trim();
         if (newTitle && newTitle !== t.title) {
@@ -901,18 +995,28 @@ function startInlineEdit(titleEl, t) {
                 });
                 const updated = await res.json();
                 const idx = allTodos.findIndex(x => x.id === t.id);
-                if (idx !== -1) allTodos[idx] = updated;
-                if (selectedTodoId === t.id) updateSidebar(updated, false);
+                if (idx !== -1) {
+                    allTodos[idx] = updated;
+                }
+                if (selectedTodoId === t.id) {
+                    updateSidebar(updated, false);
+                }
             } catch {
                 // ここはうっとうしいのでエラーが出ても画面に出さない。
-             }
+            }
         }
         render(allTodos);
     }
     input.addEventListener('blur', save);
     input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-        if (e.key === 'Escape') { done = true; render(allTodos); }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+        }
+        if (e.key === 'Escape') {
+            done = true;
+            render(allTodos);
+        }
     });
 }
 
@@ -923,7 +1027,9 @@ function startInlineEdit(titleEl, t) {
  * @returns 
  */
 function parseRecurrence(rec) {
-    if (!rec) return { type: '', days: [], dates: [], end: '' };
+    if (!rec) {
+        return { type: '', days: [], dates: [], end: '' };
+    }
     try {
         const p = JSON.parse(rec);
         return { type: p.type || '', days: p.days || [], dates: p.dates || [], end: p.end || '' };
@@ -938,7 +1044,9 @@ function parseRecurrence(rec) {
  */
 function getRecurrenceValue() {
     const type = $ge('sb-recurrence').value;
-    if (!type) return null;
+    if (!type) {
+        return null;
+    }
     const days = [...$qsa('.recurrence-day-btn.on')].map(b => +b.dataset.day);
     const dates = [...$qsa('.recurrence-date-btn.on')].map(b => +b.dataset.date);
     return JSON.stringify({ type, days, dates });
@@ -1001,7 +1109,9 @@ function updateSidebar(t, isNew) {
  * @returns 
  */
 function scheduleAutoSave() {
-    if (selectedTodoId === null) return;
+    if (selectedTodoId === null) {
+        return;
+    }
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(saveSelected, AUTO_SAVE_DEBOUNCE);
 }
@@ -1012,8 +1122,13 @@ function scheduleAutoSave() {
  */
 function discardSidebar() {
     clearTimeout(autoSaveTimer);
-    if (isNewMode) { closeSidebar(); return; }
-    if (originalTask) updateSidebar(originalTask, false);
+    if (isNewMode) {
+        closeSidebar();
+        return;
+    }
+    if (originalTask) {
+        updateSidebar(originalTask, false);
+    }
     closeSidebar();
 }
 
@@ -1072,7 +1187,9 @@ async function saveSelected() {
     const memo = $ge('sb-memo').value || null;
     const tag_ids = getSidebarCheckedTagIds();
 
-    if (selectedTodoId === null) return;
+    if (selectedTodoId === null) {
+        return;
+    }
     await apiFetch(`${TODO_API}/${selectedTodoId}`, {
         method: HTTP_METHOD_PUT, headers: JSON_HEADER,
         body: JSON.stringify({ title, deadline, urls, memo, tag_ids, recurrence }),
@@ -1089,7 +1206,9 @@ async function saveSelected() {
  * @returns 
  */
 async function toggleSelected() {
-    if (selectedTodoId === null) return;
+    if (selectedTodoId === null) {
+        return;
+    }
     const t = allTodos.find(t => t.id === selectedTodoId);
     const status = t?.status || (t?.done ? 'done' : 'todo');
     await setStatusById(selectedTodoId, status === 'done' ? 'todo' : 'done');
@@ -1101,7 +1220,9 @@ async function toggleSelected() {
  * @returns 
  */
 async function setStatusSelected(status) {
-    if (selectedTodoId === null) return;
+    if (selectedTodoId === null) {
+        return;
+    }
     await setStatusById(selectedTodoId, status);
 }
 
@@ -1126,9 +1247,13 @@ async function setStatusById(id, status) {
  * @returns 
  */
 async function delSelected() {
-    if (selectedTodoId === null) return;
+    if (selectedTodoId === null) {
+        return;
+    }
     const t = allTodos.find(t => t.id === selectedTodoId);
-    if (!confirm(DELETE_TODO_MSG(t?.title))) return;
+    if (!confirm(DELETE_TODO_MSG(t?.title))) {
+        return;
+    }
     await delById(selectedTodoId);
     closeSidebar();
 }
@@ -1151,8 +1276,13 @@ async function toggleById(id) {
  */
 async function delById(id) {
     const t = allTodos.find(t => t.id === id);
-    if (!confirm(DELETE_TODO_MSG(t?.title))) return;
-    if (selectedTodoId === id) { selectedTodoId = null; $ge('sidebar').classList.remove('open'); }
+    if (!confirm(DELETE_TODO_MSG(t?.title))) {
+        return;
+    }
+    if (selectedTodoId === id) {
+        selectedTodoId = null;
+        $ge('sidebar').classList.remove('open');
+    }
     await apiFetch(`${TODO_API}/${id}`, { method: 'DELETE' });
     fetchTodos();
 }
@@ -1163,7 +1293,7 @@ async function fetchNoteTags() {
         const res = await apiFetch(NOTE_TAGS_API);
         allNoteTags = await res.json();
         renderTagNav();
-    } catch(error) { 
+    } catch (error) {
         errorHandle(error, 'メモタグの取得に失敗しました', 'fetchNoteTags failed.');
     }
 }
@@ -1172,14 +1302,18 @@ async function fetchNoteTags() {
 async function fetchNotes() {
     try {
         let url;
-        if (activeNoteTagId === 'archived') url = `${NOTE_API}?archived=true`;
-        else if (activeNoteTagId !== null) url = `${NOTE_API}?tag_id=${activeNoteTagId}`;
-        else url = NOTE_API;
+        if (activeNoteTagId === 'archived') {
+            url = `${NOTE_API}?archived=true`;
+        } else if (activeNoteTagId !== null) {
+            url = `${NOTE_API}?tag_id=${activeNoteTagId}`;
+        } else {
+            url = NOTE_API;
+        }
         const res = await apiFetch(url);
         allNotes = await res.json();
         renderNotes();
         renderTagNav();
-    } catch(error) {
+    } catch (error) {
         errorHandle(error, 'メモの取得に失敗しました', 'fetchNotes failed.')
     }
 }
@@ -1196,7 +1330,10 @@ function renderNotes() {
     const empty = $ge('note-empty');
     document.querySelectorAll('body > .note-toolbar').forEach(t => t.remove());
     grid.innerHTML = '';
-    if (allNotes.length === 0) { empty.style.display = ''; return; }
+    if (allNotes.length === 0) {
+        empty.style.display = '';
+        return;
+    }
     empty.style.display = 'none';
     allNotes.forEach(note => grid.appendChild(buildCard(note)));
 }
@@ -1266,7 +1403,9 @@ function buildCard(note) {
     delBtn.textContent = '🗑';
     delBtn.addEventListener('click', async e => {
         e.stopPropagation();
-        if (!confirm(DELETE_NOTE_MSG)) return;
+        if (!confirm(DELETE_NOTE_MSG)) {
+            return;
+        }
         clearTimeout(noteSaveTimers[note.id]);
         await apiFetch(`${NOTE_API}/${note.id}`, { method: HTTP_METHOD_DELETE });
         fetchNotes();
@@ -1284,7 +1423,10 @@ function buildCard(note) {
     let closeToolbar = null;
 
     editToggleBtn.addEventListener('click', () => {
-        if (closeToolbar) { closeToolbar(); return; }
+        if (closeToolbar) {
+            closeToolbar();
+            return;
+        }
 
         toolbar.style.visibility = 'hidden';
         document.body.appendChild(toolbar);
@@ -1296,7 +1438,9 @@ function buildCard(note) {
         editToggleBtn.classList.add('active');
 
         function outsideHandler(ev) {
-            if (toolbar.contains(ev.target) || ev.target === editToggleBtn || bodyEl.contains(ev.target)) return;
+            if (toolbar.contains(ev.target) || ev.target === editToggleBtn || bodyEl.contains(ev.target)) {
+                return;
+            }
             closeToolbar();
         }
         closeToolbar = () => {
@@ -1328,14 +1472,18 @@ function buildCard(note) {
         bodyWasFocused = document.activeElement === bodyEl;
     });
     bodyEl.addEventListener('click', e => {
-        if (e.target.tagName === 'A' && !bodyWasFocused)
+        if (e.target.tagName === 'A' && !bodyWasFocused) {
             window.open(e.target.href, '_blank', 'noopener noreferrer');
-        if (e.target.classList.contains('note-img') && !bodyWasFocused)
+        }
+        if (e.target.classList.contains('note-img') && !bodyWasFocused) {
             openImageLightbox(e.target.src);
+        }
     });
     bodyEl.addEventListener('paste', e => {
         const items = e.clipboardData?.items;
-        if (!items) return;
+        if (!items) {
+            return;
+        }
         for (const item of items) {
             if (item.type.startsWith('image/')) {
                 e.preventDefault();
@@ -1371,7 +1519,9 @@ function buildCard(note) {
                 el.style.fontFamily = '';
                 el.style.fontSize = '';
                 el.style.backgroundColor = '';
-                if (!el.getAttribute('style').trim()) el.removeAttribute('style');
+                if (!el.getAttribute('style').trim()) {
+                    el.removeAttribute('style');
+                }
             });
             tmp.querySelectorAll('font[face]').forEach(el => el.removeAttribute('face'));
             tmp.querySelectorAll('font[size]').forEach(el => el.removeAttribute('size'));
@@ -1425,7 +1575,9 @@ function buildCard(note) {
             btn.appendChild(ind);
             btn.addEventListener('click', () => {
                 const sel = window.getSelection();
-                if (sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange();
+                if (sel && sel.rangeCount > 0) {
+                    savedRange = sel.getRangeAt(0).cloneRange();
+                }
                 openSwatchPopup(btn, 5, TEXT_COLORS, null, color => {
                     ind.style.borderBottomColor = color;
                     if (savedRange) {
@@ -1441,7 +1593,9 @@ function buildCard(note) {
             });
         } else {
             // 文字色変更以外
-            if (def.style) btn.setAttribute('style', def.style);
+            if (def.style) {
+                btn.setAttribute('style', def.style);
+            }
             btn.textContent = def.label;
             btn.addEventListener('click', () => {
                 document.execCommand(def.cmd, false, null);
@@ -1458,15 +1612,21 @@ function buildCard(note) {
     card.addEventListener('focusout', e => {
         if (!card.contains(e.relatedTarget)) {
             flushNoteSave(note.id);
-            if (closeToolbar) closeToolbar();
+            if (closeToolbar) {
+                closeToolbar();
+            }
         }
     });
 
     // ── ドラッグ並び替え ──
     card.draggable = true;
     [titleEl, bodyEl].forEach(el => {
-        el.addEventListener('focus', () => { card.draggable = false; });
-        el.addEventListener('blur',  () => { card.draggable = true; });
+        el.addEventListener('focus', () => {
+            card.draggable = false;
+        });
+        el.addEventListener('blur', () => {
+            card.draggable = true;
+        });
     });
     card.addEventListener('dragstart', e => {
         e.dataTransfer.effectAllowed = 'move';
@@ -1490,15 +1650,20 @@ function buildCard(note) {
         card.classList.remove('drag-over');
         const fromId = parseInt(e.dataTransfer.getData('text/plain'), 10);
         const toId = note.id;
-        if (fromId === toId) return;
+        if (fromId === toId) {
+            return;
+        }
         const grid = $ge('notesGrid');
         const cards = [...grid.querySelectorAll('.note-card')];
         const fromEl = grid.querySelector(`.note-card[data-id="${fromId}"]`);
         const toEl = card;
         const fromIdx = cards.indexOf(fromEl);
         const toIdx = cards.indexOf(toEl);
-        if (fromIdx < toIdx) toEl.after(fromEl);
-        else toEl.before(fromEl);
+        if (fromIdx < toIdx) {
+            toEl.after(fromEl);
+        } else {
+            toEl.before(fromEl);
+        }
         const newOrder = [...grid.querySelectorAll('.note-card')].map(c => parseInt(c.dataset.id, 10));
         await apiFetch(`${NOTE_API}/reorder`, {
             method: HTTP_METHOD_PUT,
@@ -1536,7 +1701,9 @@ function renderNoteTags(container, tags) {
  */
 function getNoteCardData(noteId) {
     const card = $qs(`.note-card[data-id="${noteId}"]`);
-    if (!card) return null;
+    if (!card) {
+        return null;
+    }
     const note = allNotes.find(n => n.id === noteId);
     const tagIds = activePopup
         ? [...activePopup.querySelectorAll('input[type=checkbox]:checked')].map(cb => +cb.value)
@@ -1566,7 +1733,9 @@ function scheduleNoteSave(noteId) {
 async function flushNoteSave(noteId) {
     clearTimeout(noteSaveTimers[noteId]);
     const data = getNoteCardData(noteId);
-    if (!data) return;
+    if (!data) {
+        return;
+    }
     const res = await apiFetch(`${NOTE_API}/${noteId}`, {
         method: HTTP_METHOD_PUT, headers: JSON_HEADER,
         body: JSON.stringify(data),
@@ -1576,7 +1745,9 @@ async function flushNoteSave(noteId) {
     if (note) {
         note.tags = updated.tags;
         const tagsEl = $ge(`tags-${noteId}`);
-        if (tagsEl) renderNoteTags(tagsEl, updated.tags);
+        if (tagsEl) {
+            renderNoteTags(tagsEl, updated.tags);
+        }
     }
     renderTagNav();
 }
@@ -1611,7 +1782,10 @@ function openImageLightbox(src) {
     overlay.appendChild(img);
     overlay.addEventListener('click', () => overlay.remove());
     document.addEventListener('keydown', function h(e) {
-        if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', h); }
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', h);
+        }
     });
     document.body.appendChild(overlay);
 }
@@ -1661,8 +1835,12 @@ function linkifyText(html) {
  * @returns 
  */
 function bodyToHtml(body) {
-    if (!body) return '';
-    if (/<[a-z][\s\S]*?>/i.test(body)) return DOMPurify.sanitize(body);
+    if (!body) {
+        return '';
+    }
+    if (/<[a-z][\s\S]*?>/i.test(body)) {
+        return DOMPurify.sanitize(body);
+    }
     return DOMPurify.sanitize(body).replace(/\n/g, '<br>');
 }
 
@@ -1681,7 +1859,9 @@ function nowJST() {
  * タグを追加。
  */
 $ge('tagInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addTag();
+    if (e.key === 'Enter') {
+        addTag();
+    }
 });
 
 const newTagColorBtn = $ge('newTagColorBtn');
@@ -1689,8 +1869,11 @@ newTagColorBtn.style.background = todoSelectedColor;
 newTagColorBtn.addEventListener('click', () => {
     const current = isNote() ? todoSelectedColor : noteSelectedColor;
     openSwatchPopup(newTagColorBtn, 5, TAG_PRESET_COLORS, current, color => {
-        if (!isNote()) todoSelectedColor = color;
-        else noteSelectedColor = color;
+        if (!isNote()) {
+            todoSelectedColor = color;
+        } else {
+            noteSelectedColor = color;
+        }
         newTagColorBtn.style.background = color;
     });
 });
@@ -1701,8 +1884,12 @@ newTagColorBtn.addEventListener('click', () => {
  * 
  */
 document.addEventListener('click', e => {
-    if (activeSection === 'note') return;
-    if (!selectedTodoId && !isNewMode) return;
+    if (activeSection === 'note') {
+        return;
+    }
+    if (!selectedTodoId && !isNewMode) {
+        return;
+    }
     if (
         e.target.closest('.todo-card') ||
         e.target.closest('.kanban-card') ||
@@ -1720,14 +1907,18 @@ document.addEventListener('click', e => {
  * 
  */
 $ge('titleInput').addEventListener('keydown', async e => {
-    if (e.key !== 'Enter') return;
+    if (e.key !== 'Enter') {
+        return;
+    }
     const title = $ge('titleInput').value.trim();
-    if (!title) return;
+    if (!title) {
+        return;
+    }
     // デフォルトで当日の00:00を設定するように修正。
     const deadline = getDefaultDeadline();
     const res = await apiFetch(TODO_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, deadline}),
+        body: JSON.stringify({ title, deadline }),
     });
     $ge('titleInput').value = '';
     const created = await res.json();
@@ -1735,7 +1926,9 @@ $ge('titleInput').addEventListener('keydown', async e => {
     isNewMode = false;
     await fetchTodos();
     const t = allTodos.find(t => t.id === created.id);
-    if (t) updateSidebar(t, false);
+    if (t) {
+        updateSidebar(t, false);
+    }
 });
 
 // 毎月日付グリッドを生成
@@ -1747,13 +1940,19 @@ $ge('titleInput').addEventListener('keydown', async e => {
         btn.dataset.date = d;
         btn.type = 'button';
         btn.textContent = d;
-        btn.addEventListener('click', () => { btn.classList.toggle('on'); scheduleAutoSave(); });
+        btn.addEventListener('click', () => {
+            btn.classList.toggle('on');
+            scheduleAutoSave();
+        });
         grid.appendChild(btn);
     }
 })();
 
 $qsa('.recurrence-day-btn').forEach(btn => {
-    btn.addEventListener('click', () => { btn.classList.toggle('on'); scheduleAutoSave(); });
+    btn.addEventListener('click', () => {
+        btn.classList.toggle('on');
+        scheduleAutoSave();
+    });
 });
 
 $ge('sb-recurrence').addEventListener('change', () => {
@@ -1775,7 +1974,9 @@ setInterval(() => {
     now = nowJST().slice(0, 16);
     if (newDate !== today) {
         today = newDate;
-        if (!isNote()) fetchTodos();
+        if (!isNote()) {
+            fetchTodos();
+        }
     } else if (!isNote()) {
         render(allTodos);
     }
