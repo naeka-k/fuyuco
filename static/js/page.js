@@ -80,7 +80,7 @@ window.addEventListener('unhandledrejection', e => { e.preventDefault(); });
 const BASE = '/fuyuco';
 const TODO_API = BASE + '/api/todos';
 const NOTE_API = BASE + '/api/notes';
-const TODO_TAGS_API = BASE + '/api/todo-tags';
+const TODO_LABELS_API = BASE + '/api/todo-labels';
 const NOTE_TAGS_API = BASE + '/api/note-tags';
 
 // ── タイミング定数（ミリ秒） ──
@@ -159,7 +159,7 @@ let isTagNavCollapsed = false;
 
 // ── TODO 状態 ──
 let allTodos = [];
-let allTodoTags = [];
+let allTodoLabels = [];
 let activeTodoTagId = null;
 let selectedTodoId = null;
 let isNewMode = false;
@@ -207,11 +207,15 @@ function switchSection(section) {
     $ge('newTagColorBtn').style.background =
         isNote() ? noteSelectedColor : todoSelectedColor;
     if (isNote()) {
+        $ge('tag-nav-title').textContent = 'タグ';
+        $ge('tagInput').placeholder = '新しいタグ...';
         closeSidebar();
         renderTagNav();
         fetchNoteTags().then(() => fetchNotes());
     } else {
-        fetchTodoTags().then(() => fetchTodos());
+        $ge('tag-nav-title').textContent = 'ラベル';
+        $ge('tagInput').placeholder = '新しいラベル...';
+        fetchTodoLabels().then(() => fetchTodos());
         if (isKanban()) {
             closeSidebar();
         }
@@ -379,10 +383,10 @@ function renderNoteTagNav() {
  * 
  */
 function renderTodoTagNav() {
-    const tags = allTodoTags;
+    const tags = allTodoLabels;
     const activeId = activeTodoTagId;
     const items = isKanban() ? allTodos.filter(t => !t.recurrence) : allTodos;
-    const tagsApi = TODO_TAGS_API;
+    const tagsApi = TODO_LABELS_API;
     const ul = $ge('tagList');
     ul.innerHTML = '';
 
@@ -423,7 +427,7 @@ function renderTagsList(tags, items, activeId, tagsApi, ul) {
                     body: JSON.stringify({ color }),
                 });
                 if (!isNote()) {
-                    await fetchTodoTags();
+                    await fetchTodoLabels();
                     fetchTodos(); 
                 } else {
                     await fetchNoteTags();
@@ -481,18 +485,19 @@ async function addTodoTag() {
     if (!name) { 
         return;
     } 
-    const tagsApi = TODO_TAGS_API;
+    const tagsApi = TODO_LABELS_API;
     const color = todoSelectedColor;
     await apiFetch(tagsApi, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, color }),
     });
     $ge('tagInput').value = '';
-    await fetchTodoTags();
+    await fetchTodoLabels();
 }
 
 /**
  * メモ用タグの追加
+
  * @returns 
  * 
  */
@@ -508,8 +513,7 @@ async function addNoteTag() {
         body: JSON.stringify({ name, color }),
     });
     $ge('tagInput').value = '';
-
-    await fetchTodoTags();
+    await fetchNoteTags();
 }
 
 /**
@@ -533,17 +537,17 @@ async function deleteTag(tagId) {
  * @returns 
  */
 async function deleteTodoTag(tagId) {
-    const tags = allTodoTags;
-    const tagsApi = TODO_TAGS_API;
+    const tags = allTodoLabels;
+    const tagsApi = TODO_LABELS_API;
     const tag = tags.find(t => t.id === tagId);
-    if (!confirm(`タグ「${tag?.name}」を削除しますか？`)){
+    if (!confirm(`ラベル「${tag?.name}」を削除しますか？`)){
         return;
     }
     await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
     if (activeTodoTagId === tagId){
         activeTodoTagId = null;
     }
-    await Promise.all([fetchTodoTags(), fetchTodos()]);
+    await Promise.all([fetchTodoLabels(), fetchTodos()]);
 }
 
 /**
@@ -566,14 +570,14 @@ async function deleteNoteTag(tagId) {
     await Promise.all([fetchNoteTags(), fetchNotes()]);
 }
 
-// ── TODO タグ ───────────────────────────────
-async function fetchTodoTags() {
+// ── TODO ラベル ───────────────────────────────
+async function fetchTodoLabels() {
     try {
-        const res = await apiFetch(TODO_TAGS_API);
-        allTodoTags = await res.json();
+        const res = await apiFetch(TODO_LABELS_API);
+        allTodoLabels = await res.json();
         renderTagNav();
     } catch (error) {
-        errorHandle(error, 'TODOタグの取得に失敗しました', 'fetchTodoTags failed.')
+        errorHandle(error, 'TODOラベルの取得に失敗しました', 'fetchTodoLabels failed.')
     }
 }
 
@@ -582,7 +586,7 @@ let sidebarTagIds = [];
 function renderSidebarSelectedTags() {
     const container = $ge('sb-selected-tags');
     container.innerHTML = '';
-    allTodoTags.filter(t => sidebarTagIds.includes(t.id)).forEach(tag => {
+    allTodoLabels.filter(t => sidebarTagIds.includes(t.id)).forEach(tag => {
         const pill = document.createElement('span');
         pill.className = 'card-tag-pill';
         pill.style.background = tag.color;
@@ -599,12 +603,12 @@ function openSidebarTagPopup() {
         activePopup.remove();
         activePopup = null;
     }
-    if (allTodoTags.length === 0) {
+    if (allTodoLabels.length === 0) {
         return;
     }
     const popup = document.createElement('div');
     popup.className = 'tag-popup';
-    allTodoTags.forEach(tag => {
+    allTodoLabels.forEach(tag => {
         const label = document.createElement('label');
         label.className = 'tag-popup-item';
         const cb = document.createElement('input');
@@ -613,7 +617,7 @@ function openSidebarTagPopup() {
         cb.checked = sidebarTagIds.includes(tag.id);
         cb.style.accentColor = tag.color;
         cb.addEventListener('change', () => {
-            sidebarTagIds = allTodoTags.filter(t =>
+            sidebarTagIds = allTodoLabels.filter(t =>
                 $qs(`.tag-popup input[value="${t.id}"]`)?.checked
             ).map(t => t.id);
             renderSidebarSelectedTags();
@@ -1201,7 +1205,7 @@ async function saveSelected() {
     });
     originalTask = {
         ...originalTask, title, deadline, urls,
-        tags: allTodoTags.filter(t => tag_ids.includes(t.id))
+        tags: allTodoLabels.filter(t => tag_ids.includes(t.id))
     };
     await fetchTodos();
 }

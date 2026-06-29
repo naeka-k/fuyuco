@@ -56,15 +56,15 @@ def generate_recurring_todos():
                      rid))
                 new_id = cur.lastrowid
                 for tag in conn.execute(
-                        "SELECT tag_id FROM todo_tag_links WHERE todo_id = ?",
+                        "SELECT tag_id FROM todo_label_links WHERE todo_id = ?",
                     (tmpl["id"], )).fetchall():
                     conn.execute(
-                        "INSERT OR IGNORE INTO todo_tag_links (todo_id, tag_id) VALUES (?, ?)",
+                        "INSERT OR IGNORE INTO todo_label_links (todo_id, tag_id) VALUES (?, ?)",
                         (new_id, tag["tag_id"]))
                 current_dl = next_dl
 
 
-def _attach_todo_tags(conn, todos):
+def _attach_todo_labels(conn, todos):
     '''
     TODOにタグ情報を付与する関数
     todosにtag_idsのリストがある場合、そのIDに対応するタグ情報をtagsというキーで付与する。
@@ -72,7 +72,7 @@ def _attach_todo_tags(conn, todos):
     '''
     if not todos:
         return todos
-    attach_tags(conn, todos, 'todo_tag_links', 'todo_id', 'todo_tags')
+    attach_tags(conn, todos, 'todo_label_links', 'todo_id', 'todo_labels')
     todo_ids = [t["id"] for t in todos]
     placeholders = ','.join('?' * len(todo_ids))
     memo_rows = conn.execute(
@@ -100,14 +100,14 @@ def get_all_todos(tag_id=None):
     with get_todo_conn() as conn:
         if tag_id is not None:
             rows = conn.execute(
-                "SELECT t.* FROM todos t JOIN todo_tag_links tl ON t.id = tl.todo_id WHERE tl.tag_id = ? ORDER BY t.deadline IS NULL, t.deadline, t.created_at",
+                "SELECT t.* FROM todos t JOIN todo_label_links tl ON t.id = tl.todo_id WHERE tl.tag_id = ? ORDER BY t.deadline IS NULL, t.deadline, t.created_at",
                 (tag_id, )).fetchall()
         else:
             rows = conn.execute(
                 "SELECT * FROM todos ORDER BY deadline IS NULL, deadline, created_at"
             ).fetchall()
         todos = [dict(row) for row in rows]
-        return _attach_todo_tags(conn, todos)
+        return _attach_todo_labels(conn, todos)
 
 
 def create_todo(title, deadline, recurrence=None, urls=None):
@@ -158,10 +158,10 @@ def _apply_status(conn, todo_id, todo, next_status):
                      todo["recurrence"], todo["recurrence_id"]))
                 new_id = cur.lastrowid
                 for tag in conn.execute(
-                        "SELECT tag_id FROM todo_tag_links WHERE todo_id = ?",
+                        "SELECT tag_id FROM todo_label_links WHERE todo_id = ?",
                     (todo_id, )).fetchall():
                     conn.execute(
-                        "INSERT OR IGNORE INTO todo_tag_links (todo_id, tag_id) VALUES (?, ?)",
+                        "INSERT OR IGNORE INTO todo_label_links (todo_id, tag_id) VALUES (?, ?)",
                         (new_id, tag["tag_id"]))
 
 
@@ -182,7 +182,7 @@ def toggle_todo(todo_id):
         _apply_status(conn, todo_id, todo, _NEXT[current])
         row = conn.execute("SELECT * FROM todos WHERE id = ?",
                            (todo_id, )).fetchone()
-        return _attach_todo_tags(conn, [dict(row)])[0]
+        return _attach_todo_labels(conn, [dict(row)])[0]
 
 
 def set_todo_status(todo_id, status):
@@ -203,7 +203,7 @@ def set_todo_status(todo_id, status):
         _apply_status(conn, todo_id, todo, status)
         row = conn.execute("SELECT * FROM todos WHERE id = ?",
                            (todo_id, )).fetchone()
-        return _attach_todo_tags(conn, [dict(row)])[0]
+        return _attach_todo_labels(conn, [dict(row)])[0]
 
 
 def delete_todo(todo_id):
@@ -213,7 +213,7 @@ def delete_todo(todo_id):
     削除に成功した場合はTrueを返し、TODOが見つからない場合はFalseを返す
     '''
     with get_todo_conn() as conn:
-        conn.execute("DELETE FROM todo_tag_links WHERE todo_id = ?",
+        conn.execute("DELETE FROM todo_label_links WHERE todo_id = ?",
                      (todo_id, ))
         affected = conn.execute("DELETE FROM todos WHERE id = ?",
                                 (todo_id, )).rowcount
@@ -252,16 +252,16 @@ def update_todo(todo_id,
         conn.execute(
             "UPDATE todos SET title = ?, deadline = ?, memo = ?, url = ?, recurrence = ?, recurrence_id = ? WHERE id = ?",
             (title, deadline, memo, urls_to_json(urls), recurrence, recurrence_id, todo_id))
-        conn.execute("DELETE FROM todo_tag_links WHERE todo_id = ?", (todo_id, ))
+        conn.execute("DELETE FROM todo_label_links WHERE todo_id = ?", (todo_id, ))
         for tid in tag_ids:
             conn.execute(
-                "INSERT OR IGNORE INTO todo_tag_links (todo_id, tag_id) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO todo_label_links (todo_id, tag_id) VALUES (?, ?)",
                 (todo_id, tid))
         row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id, )).fetchone()
         if row is None:
             return None
         todo = dict(row)
-        return _attach_todo_tags(conn, [todo])[0]
+        return _attach_todo_labels(conn, [todo])[0]
 
 
 def get_todo_memos(todo_id):
@@ -325,40 +325,40 @@ def delete_todo_memo(memo_id):
     return affected > 0
 
 
-def get_all_todo_tags():
+def get_all_todo_labels():
     '''
     TODOタグの一覧を取得する関数
     登録されているTODOタグの一覧を返す
     '''
     with get_todo_conn() as conn:
-        return get_all_tags(conn, "todo_tags")
+        return get_all_tags(conn, "todo_labels")
 
 
-def create_todo_tag(name, color):
+def create_todo_label(name, color):
     '''
     TODOタグを作成する関数
     nameで指定された名前とcolorで指定された色を持つTODOタグを作成する。
     作成に成功した場合は作成されたタグを返し、失敗した場合はNoneを返す
     '''
     with get_todo_conn() as conn:
-        return create_tag(conn, "todo_tags", name, color)
+        return create_tag(conn, "todo_labels", name, color)
 
 
-def update_todo_tag_color(tag_id, color):
+def update_todo_label_color(tag_id, color):
     '''
     TODOタグの色を更新する関数
     tag_idで指定されたTODOタグの色をcolorで更新する。
     更新に成功した場合はTrueを返し、タグが見つからない場合はFalseを返す
     '''
     with get_todo_conn() as conn:
-        return update_tag_color(conn, "todo_tags", tag_id, color)
+        return update_tag_color(conn, "todo_labels", tag_id, color)
 
 
-def delete_todo_tag(tag_id):
+def delete_todo_label(tag_id):
     '''
     TODOタグを削除する関数
     tag_idで指定されたTODOタグを削除する。
     削除に成功した場合はTrueを返し、TODOタグが見つからない場合はFalseを返す
     '''
     with get_todo_conn() as conn:
-        return delete_tag(conn, "todo_tags", "todo_tag_links", tag_id)
+        return delete_tag(conn, "todo_labels", "todo_label_links", tag_id)

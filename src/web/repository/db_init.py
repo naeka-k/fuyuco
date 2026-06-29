@@ -46,15 +46,24 @@ def init_db():
             "UPDATE todos SET status = 'done' WHERE done = 1 AND status = 'todo'"
         )
 
+        try:
+            conn.execute("ALTER TABLE todo_tags RENAME TO todo_labels")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE todo_tag_links RENAME TO todo_label_links")
+        except sqlite3.OperationalError:
+            pass
+
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS todo_tags (
+            CREATE TABLE IF NOT EXISTS todo_labels (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 color TEXT NOT NULL DEFAULT '#93c5fd'
             )
         """)
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS todo_tag_links (
+            CREATE TABLE IF NOT EXISTS todo_label_links (
                 todo_id INTEGER NOT NULL,
                 tag_id INTEGER NOT NULL,
                 PRIMARY KEY (todo_id, tag_id)

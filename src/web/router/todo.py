@@ -12,10 +12,10 @@ from ..repository import (
     set_todo_status,
     update_todo,
     delete_todo,
-    get_all_todo_tags,
-    create_todo_tag,
-    update_todo_tag_color,
-    delete_todo_tag,
+    get_all_todo_labels,
+    create_todo_label,
+    update_todo_label_color,
+    delete_todo_label,
     get_todo_memos,
     create_todo_memo,
     update_todo_memo,
@@ -97,45 +97,27 @@ def delete_todo_endpoint(todo_id: int):
         raise HTTPException(status_code=404, detail="Not found")
 
 
-@router.get("/api/todo-tags")
-def list_todo_tags():
-    '''TODOタグの一覧を取得するエンドポイント
-    登録されているTODOタグの一覧を返す
-    '''
-    return get_all_todo_tags()
+@router.get("/api/todo-labels")
+def list_todo_labels():
+    return get_all_todo_labels()
 
 
-@router.post("/api/todo-tags", status_code=201)
-def create_todo_tag_endpoint(body: TagCreate):
-    '''
-    新しいTODOタグを作成するエンドポイント
-    bodyで指定された内容のTODOタグを作成する。
-    作成に成功した場合は作成されたTODOタグを返す
-    '''
-    return create_todo_tag(body.name, body.color)
+@router.post("/api/todo-labels", status_code=201)
+def create_todo_label_endpoint(body: TagCreate):
+    return create_todo_label(body.name, body.color)
 
 
-@router.patch("/api/todo-tags/{tag_id}/color")
-def update_todo_tag_color_endpoint(tag_id: int, body: TagColorUpdate):
-    '''
-    TODOタグの色を更新するエンドポイント
-    tag_idで指定されたTODOタグの色をbodyで更新する。
-    更新に成功した場合は更新されたTODOタグを返し、TODOタグが見つからない場合は404 Not Foundを返す
-    '''
-    tag = update_todo_tag_color(tag_id, body.color)
+@router.patch("/api/todo-labels/{tag_id}/color")
+def update_todo_label_color_endpoint(tag_id: int, body: TagColorUpdate):
+    tag = update_todo_label_color(tag_id, body.color)
     if tag is None:
         raise HTTPException(status_code=404, detail="Not found")
     return tag
 
 
-@router.delete("/api/todo-tags/{tag_id}", status_code=204)
-def delete_todo_tag_endpoint(tag_id: int):
-    '''
-    TODOタグを削除するエンドポイント
-    tag_idで指定されたTODOタグを削除する。
-    削除に成功した場合は204 No Contentを返し、TODOタグが見つからない場合は404 Not Foundを返す
-    '''
-    if not delete_todo_tag(tag_id):
+@router.delete("/api/todo-labels/{tag_id}", status_code=204)
+def delete_todo_label_endpoint(tag_id: int):
+    if not delete_todo_label(tag_id):
         raise HTTPException(status_code=404, detail="Not found")
 
 
