@@ -226,7 +226,8 @@ def update_todo(todo_id,
                 memo,
                 urls,
                 tag_ids,
-                recurrence=None):
+                recurrence=None,
+                notify=None):
     '''
     TODOの内容を更新する関数
     todo_idで指定されたTODOの内容をtitle、deadline、memo、urls、tag_ids、recurrenceで更新する。
@@ -250,8 +251,8 @@ def update_todo(todo_id,
             recurrence_id = None
 
         conn.execute(
-            "UPDATE todos SET title = ?, deadline = ?, memo = ?, url = ?, recurrence = ?, recurrence_id = ? WHERE id = ?",
-            (title, deadline, memo, urls_to_json(urls), recurrence, recurrence_id, todo_id))
+            "UPDATE todos SET title = ?, deadline = ?, memo = ?, url = ?, recurrence = ?, recurrence_id = ?, notify = ? WHERE id = ?",
+            (title, deadline, memo, urls_to_json(urls), recurrence, recurrence_id, notify, todo_id))
         conn.execute("DELETE FROM todo_label_links WHERE todo_id = ?", (todo_id, ))
         for tid in tag_ids:
             conn.execute(

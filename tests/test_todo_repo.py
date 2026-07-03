@@ -263,3 +263,44 @@ class TestTodoLabels:
         update_todo(todo["id"], "Task", None, None, [], [label["id"]], None)
         delete_todo_label(label["id"])
         assert get_all_todos()[0]["tags"] == []
+
+
+class TestNotify:
+    def test_notify_default_is_none(self, db):
+        todo = create_todo("Task", "2023-06-01T09:00:00")
+        assert todo.get("notify") is None
+
+    def test_update_sets_notify(self, db):
+        todo = create_todo("Task", "2023-06-01T09:00:00")
+        result = update_todo(todo["id"], "Task", "2023-06-01T09:00:00", None, [], [], None, notify="30")
+        assert result["notify"] == "30"
+
+    def test_update_notify_all_values(self, db):
+        todo = create_todo("Task", "2023-06-01T09:00:00")
+        for value in ("60", "30", "15", "5", "0"):
+            result = update_todo(todo["id"], "Task", "2023-06-01T09:00:00", None, [], [], None, notify=value)
+            assert result["notify"] == value
+
+    def test_update_notify_to_none_clears_it(self, db):
+        todo = create_todo("Task", "2023-06-01T09:00:00")
+        update_todo(todo["id"], "Task", "2023-06-01T09:00:00", None, [], [], None, notify="15")
+        result = update_todo(todo["id"], "Task", "2023-06-01T09:00:00", None, [], [], None, notify=None)
+        assert result["notify"] is None
+
+    def test_notify_persisted_in_get_all_todos(self, db):
+        todo = create_todo("Task", "2023-06-01T09:00:00")
+        update_todo(todo["id"], "Task", "2023-06-01T09:00:00", None, [], [], None, notify="5")
+        fetched = next(t for t in get_all_todos() if t["id"] == todo["id"])
+        assert fetched["notify"] == "5"
+
+    def test_notify_independent_of_other_fields(self, db):
+        todo = create_todo("Task", "2023-06-01T09:00:00")
+        label = create_todo_label("Work", "#ff0000")
+        result = update_todo(
+            todo["id"], "Updated", "2023-07-01T10:00:00", None,
+            ["https://example.com"], [label["id"]], None, notify="60"
+        )
+        assert result["notify"] == "60"
+        assert result["title"] == "Updated"
+        assert result["urls"] == ["https://example.com"]
+        assert any(t["id"] == label["id"] for t in result["tags"])

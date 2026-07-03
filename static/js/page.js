@@ -179,6 +179,9 @@ let noteSelectedColor = TAG_PRESET_COLORS[5];
 // ── TODOメモ状態 ──
 let memoSaveTimers = {};
 
+// ── 通知状態 ──
+const notifiedTodos = new Set();
+
 // ── セクション切替 ──────────────────────────
 function isTodo() {
     return activeSection === 'todo';
@@ -701,6 +704,7 @@ async function fetchTodos() {
         allTodos = await res.json();
         render(allTodos);
         renderTagNav();
+        scheduleNotificationsViaSW();
         if (selectedTodoId !== null) {
             const t = allTodos.find(t => t.id === selectedTodoId);
             if (t) {
@@ -1152,6 +1156,7 @@ function updateSidebar(t, isNew) {
     $qs(`input[name="sb-status"][value="${currentStatus}"]`).checked = true;
     sidebarTagIds = (t.tags ?? []).map(tg => tg.id);
     renderSidebarSelectedTags();
+    $ge('sb-notify').value = t.notify ?? '';
     $ge('sidebar').classList.add('open');
 }
 
@@ -1238,13 +1243,14 @@ async function saveSelected() {
     const recurrence = getRecurrenceValue();
     const urls = getSidebarUrls();
     const tag_ids = getSidebarCheckedTagIds();
+    const notify = $ge('sb-notify').value || null;
 
     if (selectedTodoId === null) {
         return;
     }
     await apiFetch(`${TODO_API}/${selectedTodoId}`, {
         method: HTTP_METHOD_PUT, headers: JSON_HEADER,
-        body: JSON.stringify({ title, deadline, urls, tag_ids, recurrence }),
+        body: JSON.stringify({ title, deadline, urls, tag_ids, recurrence, notify }),
     });
     originalTask = {
         ...originalTask, title, deadline, urls,
@@ -2152,6 +2158,12 @@ $ge('sb-recurrence').addEventListener('change', () => {
     $ge(id).addEventListener('input', scheduleAutoSave);
 });
 $ge('sb-deadline-time').addEventListener('change', scheduleAutoSave);
+$ge('sb-notify').addEventListener('change', () => {
+    if ($ge('sb-notify').value !== '') {
+        requestNotificationPermission();
+    }
+    scheduleAutoSave();
+});
 $ge('sb-tag-btn').addEventListener('click', openSidebarTagPopup);
 $ge('sb-url-add-btn').addEventListener('click', () => addUrlInput());
 $ge('sb-memo-add-btn').addEventListener('click', async () => {
@@ -2170,6 +2182,71 @@ $ge('sb-memo-add-btn').addEventListener('click', async () => {
     }
 });
 
+function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+    try {
+        await navigator.serviceWorker.register('/fuyuco/sw.js');
+    } catch (e) {
+        console.warn('ServiceWorker registration failed:', e);
+    }
+}
+
+function buildNotifyItems() {
+    const now = Date.now();
+    return allTodos
+        .filter(t => !t.done && t.notify !== null && t.notify !== '' && t.deadline)
+        .map(t => {
+            const notifyMinutes = parseInt(t.notify, 10);
+            const notifyAt = new Date(t.deadline).getTime() - notifyMinutes * 60 * 1000;
+            return { id: t.id, title: t.title, notifyAt, notifyMinutes };
+        })
+        .filter(item => item.notifyAt > now);
+}
+
+function scheduleNotificationsViaSW() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+    navigator.serviceWorker.ready.then(reg => {
+        if (reg.active) {
+            reg.active.postMessage({ type: 'SCHEDULE', items: buildNotifyItems() });
+        }
+    });
+}
+
+function checkDeadlineNotifications() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+        return;
+    }
+    scheduleNotificationsViaSW();
+    const now = Date.now();
+    for (const todo of allTodos) {
+        if (todo.done || todo.notify === null || todo.notify === '' || !todo.deadline) {
+            continue;
+        }
+        if (notifiedTodos.has(todo.id)) {
+            continue;
+        }
+        const notifyMinutes = parseInt(todo.notify, 10);
+        const notifyAt = new Date(todo.deadline).getTime() - notifyMinutes * 60 * 1000;
+        if (now >= notifyAt && now < notifyAt + 90 * 1000) {
+            notifiedTodos.add(todo.id);
+            const body = notifyMinutes === 0
+                ? '期限になりました'
+                : `${notifyMinutes}分後に期限です`;
+            new Notification(todo.title, { body, icon: '/fuyuco/todo.png' });
+        }
+    }
+}
+
 // 日付変更検知（日付が変わったらTODOを再取得して繰り返しタスクを生成）
 setInterval(() => {
     const newDate = nowJST().slice(0, 10);
@@ -2182,7 +2259,9 @@ setInterval(() => {
     } else if (!isNote()) {
         render(allTodos);
     }
+    checkDeadlineNotifications();
 }, 60000);
 
 // 初期ロード（URLハッシュでセクション決定）
+registerServiceWorker();
 switchSection(location.hash === '#note' ? 'note' : location.hash === '#kanban' ? 'kanban' : 'todo');

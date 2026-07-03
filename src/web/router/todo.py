@@ -80,7 +80,7 @@ def update_todo_endpoint(todo_id: int, body: TodoUpdate):
     更新に成功した場合は更新されたTODOを返し、TODOが見つからない場合は404 Not Foundを返す
     '''
     todo = update_todo(todo_id, body.title, body.deadline, body.memo,
-                       body.urls, body.tag_ids, body.recurrence)
+                       body.urls, body.tag_ids, body.recurrence, body.notify)
     if todo is None:
         raise HTTPException(status_code=404, detail="Not found")
     return todo

@@ -30,6 +30,7 @@ class TodoUpdate(BaseModel):
     urls: list[str] = []
     tag_ids: list[int] = []
     recurrence: str | None = None
+    notify: str | None = None
 
 class NoteCreate(BaseModel):
     '''
