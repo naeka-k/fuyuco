@@ -12,6 +12,7 @@
     <button class="btn-collapse" id="tag-nav-menu-btn" type="button" onclick="toggleTagNav()">☰</button>
     <button class="tab active" id="tab-todo" onclick="switchSection('todo')">TODO</button>
     <button class="tab" id="tab-kanban" onclick="switchSection('kanban')">カンバン</button>
+    <button class="tab" id="tab-label" onclick="switchSection('label')">ラベル</button>
     <button class="tab" id="tab-note" onclick="switchSection('note')">メモ</button>
   </div>
 
@@ -69,6 +70,11 @@
             <div class="kanban-cards" id="k-done"></div>
           </div>
         </div>
+      </div>
+
+      <!-- ラベル管理セクション -->
+      <div id="label-section" style="display:none">
+        <div id="label-mgmt-detail"></div>
       </div>
 
       <!-- メモ セクション -->

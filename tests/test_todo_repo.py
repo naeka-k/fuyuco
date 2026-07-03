@@ -13,6 +13,7 @@ from web.repository.todo_repo import (
     set_todo_status,
     toggle_todo,
     update_todo,
+    update_todo_label,
     update_todo_label_color,
     update_todo_memo,
 )
@@ -304,3 +305,41 @@ class TestNotify:
         assert result["title"] == "Updated"
         assert result["urls"] == ["https://example.com"]
         assert any(t["id"] == label["id"] for t in result["tags"])
+
+class TestUpdateTodoLabel:
+    def test_update_name(self, db):
+        label = create_todo_label("Old", "#ff0000")
+        result = update_todo_label(label["id"], "New", "#ff0000", 0)
+        assert result["name"] == "New"
+
+    def test_update_color(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        result = update_todo_label(label["id"], "Work", "#0000ff", 0)
+        assert result["color"] == "#0000ff"
+
+    def test_update_closed_to_true(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        result = update_todo_label(label["id"], "Work", "#ff0000", 1)
+        assert result["closed"] == 1
+
+    def test_update_closed_to_false(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        update_todo_label(label["id"], "Work", "#ff0000", 1)
+        result = update_todo_label(label["id"], "Work", "#ff0000", 0)
+        assert result["closed"] == 0
+
+    def test_default_closed_is_zero(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        assert label["closed"] == 0
+
+    def test_update_missing_label_returns_none(self, db):
+        assert update_todo_label(9999, "Name", "#fff", 0) is None
+
+    def test_update_persisted_in_get_all_labels(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        update_todo_label(label["id"], "Updated", "#00ff00", 1)
+        fetched = next(l for l in get_all_todo_labels() if l["id"] == label["id"])
+        assert fetched["name"] == "Updated"
+        assert fetched["color"] == "#00ff00"
+        assert fetched["closed"] == 1
+
