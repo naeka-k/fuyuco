@@ -8,6 +8,7 @@ from web.repository.note_repo import (
     reorder_notes,
     toggle_note_archive,
     update_note,
+    update_note_tag,
     update_note_tag_color,
 )
 
@@ -198,3 +199,41 @@ class TestNoteTags:
         update_note(note["id"], "Note", "", "#fff", [tag["id"]])
         delete_note_tag(tag["id"])
         assert get_all_notes()[0]["tags"] == []
+
+
+class TestUpdateNoteTag:
+    def test_update_name(self, db):
+        tag = create_note_tag("Old", "#ff0000")
+        result = update_note_tag(tag["id"], "New", "#ff0000", 0)
+        assert result["name"] == "New"
+
+    def test_update_color(self, db):
+        tag = create_note_tag("Work", "#ff0000")
+        result = update_note_tag(tag["id"], "Work", "#0000ff", 0)
+        assert result["color"] == "#0000ff"
+
+    def test_update_closed_to_true(self, db):
+        tag = create_note_tag("Work", "#ff0000")
+        result = update_note_tag(tag["id"], "Work", "#ff0000", 1)
+        assert result["closed"] == 1
+
+    def test_update_closed_to_false(self, db):
+        tag = create_note_tag("Work", "#ff0000")
+        update_note_tag(tag["id"], "Work", "#ff0000", 1)
+        result = update_note_tag(tag["id"], "Work", "#ff0000", 0)
+        assert result["closed"] == 0
+
+    def test_default_closed_is_zero(self, db):
+        tag = create_note_tag("Work", "#ff0000")
+        assert tag["closed"] == 0
+
+    def test_update_missing_tag_returns_none(self, db):
+        assert update_note_tag(9999, "Name", "#fff", 0) is None
+
+    def test_update_persisted_in_get_all_tags(self, db):
+        tag = create_note_tag("Work", "#ff0000")
+        update_note_tag(tag["id"], "Updated", "#00ff00", 1)
+        fetched = next(t for t in get_all_note_tags() if t["id"] == tag["id"])
+        assert fetched["name"] == "Updated"
+        assert fetched["color"] == "#00ff00"
+        assert fetched["closed"] == 1
