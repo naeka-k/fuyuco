@@ -724,13 +724,48 @@ function toggleSort() {
 }
 
 /**
+ * 同一日付内での二次ソート優先順位
+ * 0: 繰り返し設定あり  1: 時刻が00:00以外  2: ラベルでグループ化
+ */
+function _todoIntraRank(t) {
+    if (t.recurrence) {
+        return 0;
+    }
+    const time = t.deadline ? t.deadline.slice(11, 16) : null;
+    if (time && time !== '00:00') {
+        return 1;
+    }
+    return 2;
+}
+
+function _todoIntraSort(a, b) {
+    const ra = _todoIntraRank(a);
+    const rb = _todoIntraRank(b);
+    if (ra !== rb) {
+        return ra - rb;
+    }
+    if (ra === 2) {
+        const la = (a.tags && a.tags.length > 0) ? a.tags[0].name : '￿';
+        const lb = (b.tags && b.tags.length > 0) ? b.tags[0].name : '￿';
+        return la.localeCompare(lb, 'ja');
+    }
+    return 0;
+}
+
+/**
  * TODO用ソート順の切り替え
  */
 function sortedTodos(todos) {
     return [...todos].sort((a, b) => {
         const da = a.deadline ?? (sortAsc ? SORT_DUMMY_DATE : '');
         const db = b.deadline ?? (sortAsc ? SORT_DUMMY_DATE : '');
-        return sortAsc ? da.localeCompare(db) : db.localeCompare(da);
+        const dateA = da.slice(0, 10);
+        const dateB = db.slice(0, 10);
+        const dateCmp = sortAsc ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+        if (dateCmp !== 0) {
+            return dateCmp;
+        }
+        return _todoIntraSort(a, b);
     });
 }
 
@@ -787,12 +822,20 @@ function groupLabel(key) {
 function kanbanSortFn(order) {
     return (a, b) => {
         if (order === KANBAN_SORT_KEY.DL_ASC) {
-            const da = a.deadline ?? SORT_DUMMY_DATE, db = b.deadline ?? SORT_DUMMY_DATE;
-            return da < db ? -1 : da > db ? 1 : 0;
+            const da = (a.deadline ?? SORT_DUMMY_DATE).slice(0, 10);
+            const db = (b.deadline ?? SORT_DUMMY_DATE).slice(0, 10);
+            if (da !== db) {
+                return da < db ? -1 : 1;
+            }
+            return _todoIntraSort(a, b);
         }
         if (order === KANBAN_SORT_KEY.DL_DESC) {
-            const da = a.deadline ?? '', db = b.deadline ?? '';
-            return da > db ? -1 : da < db ? 1 : 0;
+            const da = (a.deadline ?? '').slice(0, 10);
+            const db = (b.deadline ?? '').slice(0, 10);
+            if (da !== db) {
+                return da > db ? -1 : 1;
+            }
+            return _todoIntraSort(a, b);
         }
         return a.title.localeCompare(b.title, 'ja');
     };
