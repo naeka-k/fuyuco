@@ -1496,6 +1496,8 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding: 16px 16px 24px;
+  background: #f5f7fa;
+  border-radius: 16px;
 }
 #label-section::-webkit-scrollbar { width: 6px; }
 #label-section::-webkit-scrollbar-track { background: #fff; }
