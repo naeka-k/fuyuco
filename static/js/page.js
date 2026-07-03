@@ -2256,10 +2256,10 @@ function checkDeadlineNotifications() {
         const notifyAt = new Date(todo.deadline).getTime() - notifyMinutes * 60 * 1000;
         if (now >= notifyAt && now < notifyAt + 90 * 1000) {
             notifiedTodos.add(todo.id);
-            const body = notifyMinutes === 0
+            const notifTitle = notifyMinutes === 0
                 ? '期限になりました'
                 : `${notifyMinutes}分後に期限です`;
-            new Notification(todo.title, { body, icon: '/fuyuco/todo.png' });
+            new Notification(notifTitle, { body: todo.title, icon: '/fuyuco/todo.png' });
         }
     }
 }
