@@ -4,7 +4,7 @@
 各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
 '''
 from fastapi import APIRouter, HTTPException, Query
-from ..schemas import NoteCreate, NoteUpdate, NoteReorder, TagCreate, TagColorUpdate
+from ..schemas import NoteCreate, NoteUpdate, NoteReorder, TagCreate, TagColorUpdate, TagUpdate
 from ..repository import (
     get_all_notes,
     create_note,
@@ -14,6 +14,7 @@ from ..repository import (
     delete_note,
     get_all_note_tags,
     create_note_tag,
+    update_note_tag,
     update_note_tag_color,
     delete_note_tag,
 )
@@ -117,6 +118,14 @@ def update_note_tag_color_endpoint(tag_id: int, body: TagColorUpdate):
     更新に成功した場合は更新されたノートタグを返し、ノートタグが見つからない場合は404 Not Foundを返す
     '''
     tag = update_note_tag_color(tag_id, body.color)
+    if tag is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return tag
+
+
+@router.put("/api/note-tags/{tag_id}")
+def update_note_tag_endpoint(tag_id: int, body: TagUpdate):
+    tag = update_note_tag(tag_id, body.name, body.color, body.closed)
     if tag is None:
         raise HTTPException(status_code=404, detail="Not found")
     return tag

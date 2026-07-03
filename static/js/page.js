@@ -138,11 +138,13 @@ const TAG_PRESET_COLORS = [
 const titleMap = {
     todo: 'TODO - fuyuco',
     kanban: 'カンバン - fuyuco',
+    label: 'ラベル管理 - fuyuco',
     note: 'メモ - fuyuco'
 };
 const iconMap = {
     todo: 'todo.png',
     kanban: 'kanban.png',
+    label: 'todo.png',
     note: 'memo.png'
 };
 
@@ -179,6 +181,10 @@ let noteSelectedColor = TAG_PRESET_COLORS[5];
 // ── TODOメモ状態 ──
 let memoSaveTimers = {};
 
+// ── ラベル管理状態 ──
+let labelSaveTimers = {};
+let activeLabelMgmtId = null;
+
 // ── セクション切替 ──────────────────────────
 function isTodo() {
     return activeSection === 'todo';
@@ -188,6 +194,9 @@ function isNote() {
 }
 function isKanban() {
     return activeSection === 'kanban';
+}
+function isLabelSection() {
+    return activeSection === 'label';
 }
 
 /**
@@ -200,9 +209,11 @@ function switchSection(section) {
     history.replaceState(null, '', '#' + section);
     $ge('tab-todo').classList.toggle('active', section === 'todo');
     $ge('tab-kanban').classList.toggle('active', section === 'kanban');
+    $ge('tab-label').classList.toggle('active', section === 'label');
     $ge('tab-note').classList.toggle('active', section === 'note');
     $ge('todo-section').style.display = section === 'todo' ? '' : 'none';
     $ge('kanban-section').style.display = section === 'kanban' ? '' : 'none';
+    $ge('label-section').style.display = section === 'label' ? '' : 'none';
     $ge('note-section').style.display = section === 'note' ? '' : 'none';
     $ge('newTagColorBtn').style.background =
         isNote() ? noteSelectedColor : todoSelectedColor;
@@ -212,6 +223,11 @@ function switchSection(section) {
         closeSidebar();
         renderTagNav();
         fetchNoteTags().then(() => fetchNotes());
+    } else if (isLabelSection()) {
+        $ge('tag-nav-title').textContent = 'ラベル';
+        $ge('tagInput').placeholder = '新しいラベル...';
+        closeSidebar();
+        renderLabelSection();
     } else {
         $ge('tag-nav-title').textContent = 'ラベル';
         $ge('tagInput').placeholder = '新しいラベル...';
@@ -296,12 +312,13 @@ function openTagPopup(anchorEl, noteId, checkedTagIds) {
         activePopup.remove();
         activePopup = null;
     }
-    if (allNoteTags.length === 0){
+    const visibleNoteTags = allNoteTags.filter(t => !t.closed);
+    if (visibleNoteTags.length === 0){
         return;
     }
     const popup = document.createElement('div');
     popup.className = 'tag-popup';
-    allNoteTags.forEach(tag => {
+    visibleNoteTags.forEach(tag => {
         const label = document.createElement('label');
         label.className = 'tag-popup-item';
         const cb = document.createElement('input');
@@ -340,11 +357,11 @@ function openTagPopup(anchorEl, noteId, checkedTagIds) {
 // ── タグナビ共通 ────────────────────────────
 function renderTagNav() {
     if (isNote()) {
-        // メモページ
-        renderNoteTagNav()
+        renderNoteTagNav();
+    } else if (isLabelSection()) {
+        renderLabelSectionNav();
     } else {
-        // TODOとカンバン
-        renderTodoTagNav()
+        renderTodoTagNav();
     }
 }
 
@@ -353,7 +370,7 @@ function renderTagNav() {
  * 
  */
 function renderNoteTagNav() {
-    const tags = allNoteTags;
+    const tags = allNoteTags.filter(t => !t.closed);
     const activeId = activeNoteTagId;
     const items = allNotes;
     const tagsApi = NOTE_TAGS_API;
@@ -383,7 +400,7 @@ function renderNoteTagNav() {
  * 
  */
 function renderTodoTagNav() {
-    const tags = allTodoLabels;
+    const tags = allTodoLabels.filter(t => !t.closed);
     const activeId = activeTodoTagId;
     const items = isKanban() ? allTodos.filter(t => !t.recurrence) : allTodos;
     const tagsApi = TODO_LABELS_API;
@@ -603,12 +620,13 @@ function openSidebarTagPopup() {
         activePopup.remove();
         activePopup = null;
     }
-    if (allTodoLabels.length === 0) {
+    const visibleLabels = allTodoLabels.filter(t => !t.closed);
+    if (visibleLabels.length === 0) {
         return;
     }
     const popup = document.createElement('div');
     popup.className = 'tag-popup';
-    allTodoLabels.forEach(tag => {
+    visibleLabels.forEach(tag => {
         const label = document.createElement('label');
         label.className = 'tag-popup-item';
         const cb = document.createElement('input');
@@ -2176,13 +2194,143 @@ setInterval(() => {
     now = nowJST().slice(0, 16);
     if (newDate !== today) {
         today = newDate;
-        if (!isNote()) {
+        if (!isNote() && !isLabelSection()) {
             fetchTodos();
         }
-    } else if (!isNote()) {
+    } else if (!isNote() && !isLabelSection()) {
         render(allTodos);
     }
 }, 60000);
 
+// ── ラベル管理セクション ────────────────────────
+async function renderLabelSection() {
+    try {
+        const res = await apiFetch(TODO_LABELS_API);
+        allTodoLabels = await res.json();
+    } catch (error) {
+        errorHandle(error, 'ラベルの取得に失敗しました', 'renderLabelSection failed.');
+    }
+
+    if (activeLabelMgmtId === null || !allTodoLabels.find(t => t.id === activeLabelMgmtId)) {
+        activeLabelMgmtId = allTodoLabels.length > 0 ? allTodoLabels[0].id : null;
+    }
+
+    renderTagNav();
+
+    if (activeLabelMgmtId !== null) {
+        const label = allTodoLabels.find(t => t.id === activeLabelMgmtId);
+        if (label) {
+            renderLabelMgmtDetail(label);
+        }
+    } else {
+        $ge('label-mgmt-detail').innerHTML = '<p class="label-mgmt-empty">ラベルがありません。左のナビからラベルを追加してください。</p>';
+    }
+}
+
+function renderLabelSectionNav() {
+    const ul = $ge('tagList');
+    ul.innerHTML = '';
+    allTodoLabels.forEach(label => {
+        const li = document.createElement('li');
+        li.className = `tag-item ${activeLabelMgmtId === label.id ? 'active' : ''}`;
+        if (label.closed) {
+            li.style.opacity = '0.5';
+        }
+        const dot = document.createElement('span');
+        dot.className = 'tag-color-btn';
+        dot.style.background = label.color;
+        const name = document.createElement('span');
+        name.className = 'tag-item-name';
+        name.title = label.name;
+        name.textContent = truncTag(label.name);
+        li.appendChild(dot);
+        li.appendChild(name);
+        if (label.closed) {
+            const badge = document.createElement('span');
+            badge.className = 'tag-count';
+            badge.textContent = 'CL';
+            li.appendChild(badge);
+        }
+        li.addEventListener('click', () => {
+            activeLabelMgmtId = label.id;
+            renderTagNav();
+            renderLabelMgmtDetail(label);
+        });
+        ul.appendChild(li);
+    });
+}
+
+function renderLabelMgmtDetail(label) {
+    const container = $ge('label-mgmt-detail');
+    container.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'label-mgmt-group';
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'label-mgmt-row';
+
+    const colorBtn = document.createElement('span');
+    colorBtn.className = 'tag-color-btn';
+    colorBtn.style.background = label.color;
+    colorBtn.title = '色を変更';
+    colorBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openSwatchPopup(colorBtn, 5, TAG_PRESET_COLORS, label.color, color => {
+            label.color = color;
+            colorBtn.style.background = color;
+            scheduleLabelSave(label);
+        });
+    });
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'label-mgmt-name';
+    nameInput.value = label.name;
+    nameInput.addEventListener('input', () => {
+        label.name = nameInput.value;
+        scheduleLabelSave(label);
+    });
+
+    nameRow.appendChild(colorBtn);
+    nameRow.appendChild(nameInput);
+
+    const closeRow = document.createElement('div');
+    closeRow.className = 'label-mgmt-row';
+    const closeLabel = document.createElement('label');
+    closeLabel.className = 'label-mgmt-close-label';
+    const closeCb = document.createElement('input');
+    closeCb.type = 'checkbox';
+    closeCb.checked = !!label.closed;
+    closeCb.addEventListener('change', () => {
+        label.closed = closeCb.checked ? 1 : 0;
+        scheduleLabelSave(label);
+    });
+    const closeSpan = document.createElement('span');
+    closeSpan.textContent = 'クローズ';
+    closeLabel.appendChild(closeCb);
+    closeLabel.appendChild(closeSpan);
+    closeRow.appendChild(closeLabel);
+
+    card.appendChild(nameRow);
+    card.appendChild(closeRow);
+    container.appendChild(card);
+}
+
+function scheduleLabelSave(label) {
+    if (labelSaveTimers[label.id]) {
+        clearTimeout(labelSaveTimers[label.id]);
+    }
+    labelSaveTimers[label.id] = setTimeout(async () => {
+        delete labelSaveTimers[label.id];
+        await apiFetch(`${TODO_LABELS_API}/${label.id}`, {
+            method: HTTP_METHOD_PUT,
+            headers: JSON_HEADER,
+            body: JSON.stringify({ name: label.name, color: label.color, closed: label.closed }),
+        });
+        renderTagNav();
+    }, AUTO_SAVE_DEBOUNCE);
+}
+
 // 初期ロード（URLハッシュでセクション決定）
-switchSection(location.hash === '#note' ? 'note' : location.hash === '#kanban' ? 'kanban' : 'todo');
+switchSection(location.hash === '#note' ? 'note' : location.hash === '#kanban' ? 'kanban' : location.hash === '#label' ? 'label' : 'todo');

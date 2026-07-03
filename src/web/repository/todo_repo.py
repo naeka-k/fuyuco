@@ -325,6 +325,20 @@ def delete_todo_memo(memo_id):
     return affected > 0
 
 
+def update_todo_label(tag_id, name, color, closed):
+    with get_todo_conn() as conn:
+        conn.execute(
+            "UPDATE todo_labels SET name = ?, color = ?, closed = ? WHERE id = ?",
+            (name, color, closed, tag_id)
+        )
+        row = conn.execute(
+            "SELECT * FROM todo_labels WHERE id = ?", (tag_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+
 def get_all_todo_labels():
     '''
     TODOタグの一覧を取得する関数

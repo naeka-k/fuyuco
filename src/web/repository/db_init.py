@@ -62,6 +62,7 @@ def init_db():
                 color TEXT NOT NULL DEFAULT '#93c5fd'
             )
         """)
+        ensure_column(conn, "todo_labels", "closed", "INTEGER NOT NULL DEFAULT 0")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_label_links (
                 todo_id INTEGER NOT NULL,
@@ -122,6 +123,7 @@ def init_db():
                 color TEXT NOT NULL DEFAULT '#93c5fd'
             )
         """)
+        ensure_column(conn, "note_tags", "closed", "INTEGER NOT NULL DEFAULT 0")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS note_tag_links (
                 note_id INTEGER NOT NULL,

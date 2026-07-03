@@ -4,7 +4,7 @@ TODO関連のAPIエンドポイントを定義するモジュール
 各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
 '''
 from fastapi import APIRouter, HTTPException, Query
-from ..schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate, TodoMemoCreate, TodoMemoUpdate
+from ..schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate, TagUpdate, TodoMemoCreate, TodoMemoUpdate
 from ..repository import (
     get_all_todos,
     create_todo,
@@ -14,6 +14,7 @@ from ..repository import (
     delete_todo,
     get_all_todo_labels,
     create_todo_label,
+    update_todo_label,
     update_todo_label_color,
     delete_todo_label,
     get_todo_memos,
@@ -110,6 +111,14 @@ def create_todo_label_endpoint(body: TagCreate):
 @router.patch("/api/todo-labels/{tag_id}/color")
 def update_todo_label_color_endpoint(tag_id: int, body: TagColorUpdate):
     tag = update_todo_label_color(tag_id, body.color)
+    if tag is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return tag
+
+
+@router.put("/api/todo-labels/{tag_id}")
+def update_todo_label_endpoint(tag_id: int, body: TagUpdate):
+    tag = update_todo_label(tag_id, body.name, body.color, body.closed)
     if tag is None:
         raise HTTPException(status_code=404, detail="Not found")
     return tag

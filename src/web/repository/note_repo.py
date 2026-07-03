@@ -123,6 +123,20 @@ def delete_note(note_id):
     return affected > 0
 
 
+def update_note_tag(tag_id, name, color, closed):
+    with get_note_conn() as conn:
+        conn.execute(
+            "UPDATE note_tags SET name = ?, color = ?, closed = ? WHERE id = ?",
+            (name, color, closed, tag_id)
+        )
+        row = conn.execute(
+            "SELECT * FROM note_tags WHERE id = ?", (tag_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+
 def get_all_note_tags():
     '''
     ノートタグの一覧を取得する関数

@@ -9,6 +9,7 @@ from .note_repo import (
     reorder_notes,
     toggle_note_archive,
     update_note,
+    update_note_tag,
     update_note_tag_color,
 )
 from .todo_repo import (
@@ -25,6 +26,7 @@ from .todo_repo import (
     set_todo_status,
     toggle_todo,
     update_todo,
+    update_todo_label,
     update_todo_memo,
     update_todo_label_color,
 )
@@ -40,6 +42,7 @@ __all__ = [
     "reorder_notes",
     "toggle_note_archive",
     "update_note",
+    "update_note_tag",
     "update_note_tag_color",
     "create_todo",
     "create_todo_memo",
@@ -54,6 +57,7 @@ __all__ = [
     "set_todo_status",
     "toggle_todo",
     "update_todo",
+    "update_todo_label",
     "update_todo_memo",
     "update_todo_label_color",
 ]
