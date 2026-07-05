@@ -61,7 +61,7 @@ class NoteReorder(BaseModel):
 class StatusUpdate(BaseModel):
     '''
     TODOの状態を更新するためのモデル
-    statusフィールドは 'todo'、'doing'、'done'のいずれかを定義する
+    statusフィールドは 'todo'、'doing'、'done'、'waiting'のいずれかを定義する
     '''
     status: str
 

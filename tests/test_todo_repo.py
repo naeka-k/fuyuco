@@ -101,6 +101,12 @@ class TestSetTodoStatus:
     def test_missing_id_returns_none(self, db):
         assert set_todo_status(9999, "done") is None
 
+    def test_set_to_waiting(self, db):
+        todo = create_todo("Task", "2023-06-01T00:00:00")
+        result = set_todo_status(todo["id"], "waiting")
+        assert result["status"] == "waiting"
+        assert result["done"] == 0
+
     def test_invalid_status_raises_value_error(self, db):
         todo = create_todo("Task", "2023-06-01T00:00:00")
         with pytest.raises(ValueError):

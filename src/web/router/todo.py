@@ -65,7 +65,7 @@ def set_todo_status_endpoint(todo_id: int, body: StatusUpdate):
     todo_idで指定されたTODOの状態をbody.statusで設定する。
     設定に成功した場合は更新されたTODOを返し、TODOが見つからない場合は404 Not Foundを返す
     '''
-    if body.status not in ('todo', 'doing', 'done'):
+    if body.status not in ('todo', 'doing', 'done', 'waiting'):
         raise HTTPException(status_code=400, detail="Invalid status")
     todo = set_todo_status(todo_id, body.status)
     if todo is None:

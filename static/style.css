@@ -1194,6 +1194,7 @@ body {
   overflow: hidden;
 }
 .kanban-col-doing { background: #eef4ff; }
+.kanban-col-waiting { background: #f0fbf5; }
 .kanban-col-header {
   font-size: .88rem;
   font-weight: bold;
@@ -1217,6 +1218,7 @@ body {
   font-family: inherit;
 }
 .kanban-col-doing .kanban-sort-sel { background: #f5f9ff; }
+.kanban-col-waiting .kanban-sort-sel { background: #f4fdf8; }
 .kanban-count {
   font-size: .78rem;
   font-weight: normal;
@@ -1230,6 +1232,10 @@ body {
 .kanban-col-doing .kanban-count {
   background: #d0e4ff;
   color: #3d82f0;
+}
+.kanban-col-waiting .kanban-count {
+  background: #b8e8cc;
+  color: #2d6e4e;
 }
 .kanban-cards {
   display: flex;
@@ -1347,6 +1353,9 @@ body {
 /* ── リストビュー: doingカード ── */
 .todo-card.doing { border-left: 3px solid #3d82f0; }
 
+/* ── リストビュー: waitingカード ── */
+.todo-card.waiting { border-left: 3px solid #4caf7d; }
+
 /* ── チェックボタン: doing状態 ── */
 .check.doing {
   background: #dceeff;
@@ -1354,6 +1363,14 @@ body {
   color: #3d82f0;
 }
 .check.doing::after { content: '▶'; }
+
+/* ── チェックボタン: waiting状態 ── */
+.check.waiting {
+  background: #d6f0e3;
+  border-color: #4caf7d;
+  color: #4caf7d;
+}
+.check.waiting::after { content: '⏸'; font-size: .85rem; }
 
 /* ── ステータスラジオボタン(サイドバー) ── */
 .status-radios {

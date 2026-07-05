@@ -110,6 +110,28 @@ const TAG_TRUNCATE_LEN = 12;
 const MAX_URL_COUNT = 5;
 const MAX_TAG_HISTORY_LEN = 140;
 
+// ── カンバン列の順序（左から右） ──
+const KANBAN_STATUSES = ['todo', 'doing', 'done', 'waiting'];
+
+// ── カンバンカードの移動ボタン定義（列ごと） ──
+const KANBAN_MOVE_BTNS = {
+    todo:    [
+        { label: '⏸',  targetStatus: 'waiting', title: '待機中にする' },
+        { label: '▶',  targetStatus: 'doing',   title: '進める' },
+    ],
+    doing:   [
+        { label: '◀',  targetStatus: 'todo',    title: '戻す' },
+        { label: '⏸',  targetStatus: 'waiting', title: '待機中にする' },
+        { label: '▶',  targetStatus: 'done',    title: '進める' },
+    ],
+    done:    [
+        { label: '◀',  targetStatus: 'doing',   title: '戻す' },
+    ],
+    waiting: [
+        { label: '◀◀', targetStatus: 'doing',   title: '実施中に戻す' },
+    ],
+};
+
 // ── カラーセット名 ──
 const KANBAN_SORT_KEY = {
     DL_ASC: 'dl-asc',
@@ -867,7 +889,7 @@ function kanbanSortFn(order) {
  * 
  */
 function renderKanban() {
-    ['todo', 'doing', 'done'].forEach(s => {
+    KANBAN_STATUSES.forEach(s => {
         const sel = $ge(`k-sort-${s}`);
         if (!sel.options.length) {
             KANBAN_SORT_OPTS.forEach(o => {
@@ -882,20 +904,21 @@ function renderKanban() {
         !t.recurrence &&
         (activeTodoTagId === null || t.tags.some(tg => tg.id === activeTodoTagId))
     );
-    const cols = { todo: [], doing: [], done: [] };
+    const cols = { todo: [], doing: [], done: [], waiting: [] };
     filtered.forEach(t => {
         const s = t.status || (t.done ? 'done' : 'todo');
         (cols[s] || cols.todo).push(t);
     });
-    ['todo', 'doing', 'done'].forEach(s => {
+    KANBAN_STATUSES.forEach(s => {
         const order = $ge(`k-sort-${s}`).value;
         cols[s].sort(kanbanSortFn(order));
     });
 
-    ['todo', 'doing', 'done'].forEach(status => {
+    KANBAN_STATUSES.forEach(status => {
         const container = $ge(`k-${status}`);
         $ge(`k-count-${status}`).textContent = cols[status].length;
         container.innerHTML = '';
+        const moveDefs = KANBAN_MOVE_BTNS[status] ?? [];
         cols[status].forEach(t => {
             const memoText = t.latest_memo ?? t.memo ?? '';
             const memo = memoText.length > MEMO_TRUNCATE_LEN ? memoText.slice(0, MEMO_TRUNCATE_LEN) + '…' : memoText;
@@ -908,6 +931,9 @@ function renderKanban() {
             ).join('');
             const urlBtns = (t.urls || []).map(u =>
                 `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`
+            ).join('');
+            const moveBtnsHtml = moveDefs.map(b =>
+                `<button class="btn-kmove" title="${b.title}" onclick="event.stopPropagation();setStatusById(${t.id},'${b.targetStatus}')">${b.label}</button>`
             ).join('');
 
             const card = document.createElement('div');
@@ -926,10 +952,7 @@ function renderKanban() {
             ${tagPills ? `<div class="card-tags" style="margin-top:6px">${tagPills}</div>` : ''}
             <div class="kanban-card-footer">
             <div>${urlBtns}</div>
-            <div class="kanban-move-btns">
-                ${status !== 'todo' ? `<button class="btn-kmove" title="戻す" onclick="event.stopPropagation();setStatusById(${t.id},'${status === 'doing' ? 'todo' : 'doing'}')">◀</button>` : ''}
-                ${status !== 'done' ? `<button class="btn-kmove" title="進める" onclick="event.stopPropagation();setStatusById(${t.id},'${status === 'todo' ? 'doing' : 'done'}')">▶</button>` : ''}
-            </div>
+            <div class="kanban-move-btns">${moveBtnsHtml}</div>
             </div>
           `;
             card.addEventListener('click', () => selectTodo(t.id));
@@ -980,6 +1003,7 @@ function render(todos) {
             const cardCls = ['todo-card',
                 status === 'done' ? 'done' : '',
                 status === 'doing' ? 'doing' : '',
+                status === 'waiting' ? 'waiting' : '',
                 isOverdue ? 'overdue' : '',
                 isToday ? 'today' : '',
                 t.id === selectedTodoId ? 'selected' : '',
@@ -1004,7 +1028,7 @@ function render(todos) {
             const card = document.createElement('div');
             card.className = cardCls;
             card.innerHTML = `
-            <div class="check ${status === 'done' ? 'checked' : status === 'doing' ? 'doing' : ''}" onclick="event.stopPropagation(); toggleById(${t.id})"></div>
+            <div class="check ${status === 'done' ? 'checked' : status === 'doing' ? 'doing' : status === 'waiting' ? 'waiting' : ''}" onclick="event.stopPropagation(); toggleById(${t.id})"></div>
             <div class="card-info">
             <div class="card-title">${escHtml(t.title)}</div>
             ${(t.latest_memo ?? t.memo) ? `<div class="card-memo">${escHtml(t.latest_memo ?? t.memo)}</div>` : ''}

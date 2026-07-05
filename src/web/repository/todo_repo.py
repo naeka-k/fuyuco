@@ -136,7 +136,7 @@ def _apply_status(conn, todo_id, todo, next_status):
     '''
     TODOの状態を更新する関数
     todo_idで指定されたTODOの状態をnext_statusに更新する。
-    next_statusは'todo'、'doing'、'done'のいずれかでなければならない
+    next_statusは'todo'、'doing'、'done'、'waiting'のいずれかでなければならない
     TODOが完了状態から未完了状態に変更された場合、recurrenceのルールに従って次のTODOを生成する
     '''
     done = 1 if next_status == 'done' else 0
@@ -171,7 +171,7 @@ def toggle_todo(todo_id):
     todo_idで指定されたTODOの完了状態を切り替える。
     切り替えに成功した場合は更新されたTODOを返し、TODOが見つからない場合はNoneを返す
     '''
-    _NEXT = {'todo': 'doing', 'doing': 'done', 'done': 'todo'}
+    _NEXT = {'todo': 'doing', 'doing': 'done', 'done': 'todo', 'waiting': 'todo'}
     with get_todo_conn() as conn:
         row = conn.execute("SELECT * FROM todos WHERE id = ?",
                            (todo_id, )).fetchone()
@@ -192,8 +192,8 @@ def set_todo_status(todo_id, status):
     statusは'todo'、'doing'、'done'のいずれかでなければならない
     設定に成功した場合は更新されたTODOを返し、TODOが見つからない場合はNoneを返す
     '''
-    if status not in ['todo', 'doing', 'done']:
-        raise ValueError("Invalid status. Must be 'todo', 'doing', or 'done'.")
+    if status not in ['todo', 'doing', 'done', 'waiting']:
+        raise ValueError("Invalid status. Must be 'todo', 'doing', 'done', or 'waiting'.")
     with get_todo_conn() as conn:
         row = conn.execute("SELECT * FROM todos WHERE id = ?",
                            (todo_id, )).fetchone()

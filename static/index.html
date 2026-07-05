@@ -69,6 +69,13 @@
             </div>
             <div class="kanban-cards" id="k-done"></div>
           </div>
+          <div class="kanban-col kanban-col-waiting">
+            <div class="kanban-col-header">
+              <span>待機中</span><span class="kanban-count" id="k-count-waiting"></span>
+              <select class="kanban-sort-sel" id="k-sort-waiting" onchange="renderKanban()"></select>
+            </div>
+            <div class="kanban-cards" id="k-waiting"></div>
+          </div>
         </div>
       </div>
 
@@ -101,6 +108,7 @@
             <label class="status-radio-label"><input type="radio" name="sb-status" value="todo" onchange="setStatusSelected('todo')"><span>未着手</span></label>
             <label class="status-radio-label"><input type="radio" name="sb-status" value="doing" onchange="setStatusSelected('doing')"><span>実施中</span></label>
             <label class="status-radio-label"><input type="radio" name="sb-status" value="done" onchange="setStatusSelected('done')"><span>完了</span></label>
+            <label class="status-radio-label"><input type="radio" name="sb-status" value="waiting" onchange="setStatusSelected('waiting')"><span>待機中</span></label>
           </div>
         </div>
         <div class="field">
