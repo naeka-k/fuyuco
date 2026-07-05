@@ -2219,7 +2219,7 @@ async function registerServiceWorker() {
 function buildNotifyItems() {
     const now = Date.now();
     return allTodos
-        .filter(t => !t.done && t.notify !== null && t.notify !== '' && t.deadline)
+        .filter(t => t.status !== 'done' && t.notify !== null && t.notify !== '' && t.deadline)
         .map(t => {
             const notifyMinutes = parseInt(t.notify, 10);
             const notifyAt = new Date(t.deadline).getTime() - notifyMinutes * 60 * 1000;
@@ -2239,14 +2239,22 @@ function scheduleNotificationsViaSW() {
     });
 }
 
+/**
+ * 期限通知を確認し、必要に応じて通知を表示する。
+ * Service Workerが有効な場合はSW経由でスケジュールし、フォールバックは使わない。
+ * SWが使えない場合のみ、このタブから直接 new Notification() を発火する。
+ */
 function checkDeadlineNotifications() {
     if (!('Notification' in window) || Notification.permission !== 'granted') {
         return;
     }
     scheduleNotificationsViaSW();
+    if (navigator.serviceWorker?.controller) {
+        return;
+    }
     const now = Date.now();
     for (const todo of allTodos) {
-        if (todo.done || todo.notify === null || todo.notify === '' || !todo.deadline) {
+        if (todo.status === 'done' || todo.notify === null || todo.notify === '' || !todo.deadline) {
             continue;
         }
         if (notifiedTodos.has(todo.id)) {
@@ -2297,7 +2305,7 @@ async function renderLabelSection() {
     if (activeLabelMgmtId !== null) {
         const label = allTodoLabels.find(t => t.id === activeLabelMgmtId);
         if (label) {
-            renderLabelMgmtDetail(label);
+            renderLabelManagementDetail(label);
         }
     } else {
         $ge('label-mgmt-detail').innerHTML = '<p class="label-mgmt-empty">ラベルがありません。左のナビからラベルを追加してください。</p>';
@@ -2331,13 +2339,18 @@ function renderLabelSectionNav() {
         li.addEventListener('click', () => {
             activeLabelMgmtId = label.id;
             renderTagNav();
-            renderLabelMgmtDetail(label);
+            renderLabelManagementDetail(label);
         });
         ul.appendChild(li);
     });
 }
 
-function renderLabelMgmtDetail(label) {
+/**
+ * ラベル管理画面の表示
+ * 
+ * @param {data} label 
+ */
+function renderLabelManagementDetail(label) {
     const container = $ge('label-mgmt-detail');
     container.innerHTML = '';
 
@@ -2394,6 +2407,10 @@ function renderLabelMgmtDetail(label) {
     container.appendChild(card);
 }
 
+/**
+ * ラベル画面の保存タイマー
+ * @param {data} label 
+ */
 function scheduleLabelSave(label) {
     if (labelSaveTimers[label.id]) {
         clearTimeout(labelSaveTimers[label.id]);

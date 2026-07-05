@@ -15,6 +15,10 @@ function buildTitle(notifyMinutes) {
     return notifyMinutes === 0 ? '期限になりました' : `${notifyMinutes}分後に期限です`;
 }
 
+/**
+ * トーストの表示処理 
+ * 
+ */
 self.addEventListener('message', event => {
     if (event.data?.type !== 'SCHEDULE') {
         return;
@@ -45,10 +49,12 @@ self.addEventListener('message', event => {
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     if (event.action === 'close') {
+        // 通知トーストの閉じるボタン。そのまま閉じる。
         return;
     }
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+            // トーストの確認ボタン。該当のTODOを表示する。
             const fuyucoClient = list.find(c => c.url.includes('/fuyuco'));
             if (fuyucoClient) {
                 return fuyucoClient.focus();
