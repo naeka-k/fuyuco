@@ -43,6 +43,7 @@ def init_db():
         ensure_column(conn, "todos", "recurrence_id", "INTEGER")
         ensure_column(conn, "todos", "status", "TEXT NOT NULL DEFAULT 'todo'")
         ensure_column(conn, "todos", "notify", "TEXT")
+        ensure_column(conn, "todos", "starred", "INTEGER NOT NULL DEFAULT 0")
         conn.execute(
             "UPDATE todos SET status = 'done' WHERE done = 1 AND status = 'todo'"
         )

@@ -457,6 +457,21 @@ body {
 }
 .btn-del:hover { color: #f9a8a8; }
 
+/* ── TODOリスト: スターボタン ── */
+.btn-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 3px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: .2;
+  transition: opacity .15s;
+}
+.btn-star:hover { opacity: .6; }
+.btn-star.starred { opacity: 1; }
+
 .empty {
   text-align: center;
   color: #a8cffb;
@@ -509,6 +524,25 @@ body {
   top: 0;
   right: 0;
 }
+.sb-title-field > .btn-star-sb {
+  position: absolute;
+  top: 0;
+  right: 32px;
+}
+/* ── サイドバー: スターボタン ── */
+.btn-star-sb {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: .2;
+  transition: opacity .12s;
+  line-height: 1;
+}
+.btn-star-sb:hover { opacity: .6; }
+.btn-star-sb.starred { opacity: 1; }
 .btn-trash-del {
   background: none;
   border: none;
@@ -1313,6 +1347,27 @@ body {
   flex-wrap: wrap;
   gap: 2px;
 }
+/* ── カンバン: タイトル行右側（日付＋スター） ── */
+.kanban-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+/* ── カンバン: スターボタン ── */
+.btn-kstar {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .9rem;
+  padding: 0;
+  opacity: .2;
+  transition: opacity .15s;
+  line-height: 1;
+}
+.btn-kstar:hover { opacity: .6; }
+.btn-kstar.starred { opacity: 1; }
 .kanban-card-footer {
   display: flex;
   align-items: center;

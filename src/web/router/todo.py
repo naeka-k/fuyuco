@@ -9,6 +9,7 @@ from ..repository import (
     get_all_todos,
     create_todo,
     toggle_todo,
+    toggle_todo_starred,
     set_todo_status,
     update_todo,
     delete_todo,
@@ -53,6 +54,19 @@ def toggle_todo_endpoint(todo_id: int):
     切り替えに成功した場合は更新されたTODOを返し、TODOが見つからない場合は404 Not Foundを返す
     '''
     todo = toggle_todo(todo_id)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return todo
+
+
+@router.patch("/api/todos/{todo_id}/star")
+def toggle_star_endpoint(todo_id: int):
+    '''
+    TODOのスター（優先度）をON/OFFするエンドポイント
+    todo_idで指定されたTODOのstarredを切り替える。
+    成功した場合は更新されたTODOを返し、見つからない場合は404 Not Foundを返す
+    '''
+    todo = toggle_todo_starred(todo_id)
     if todo is None:
         raise HTTPException(status_code=404, detail="Not found")
     return todo

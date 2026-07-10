@@ -946,7 +946,10 @@ function renderKanban() {
             card.innerHTML = `
             <div class="kanban-card-title-row">
             <span class="kanban-card-title">${escHtml(t.title)}</span>
-            ${dl ? `<span class="kanban-card-deadline ${dlCls}">${escHtml(dl)}</span>` : ''}
+            <div class="kanban-card-right">
+              ${dl ? `<span class="kanban-card-deadline ${dlCls}">${escHtml(dl)}</span>` : ''}
+              <button class="btn-kstar${t.starred ? ' starred' : ''}" onclick="event.stopPropagation();toggleStarById(${t.id})" title="優先度">⭐</button>
+            </div>
             </div>
             ${memo ? `<div class="kanban-card-memo">${escHtml(memo)}</div>` : ''}
             ${tagPills ? `<div class="card-tags" style="margin-top:6px">${tagPills}</div>` : ''}
@@ -1036,6 +1039,7 @@ function render(todos) {
             </div>
             ${t.recurrence ? `<span class="card-recurrence">🔁</span>` : ''}
             ${(t.urls || []).map(u => `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`).join('')}
+            <button class="btn-star${t.starred ? ' starred' : ''}" onclick="event.stopPropagation(); toggleStarById(${t.id})" title="優先度">⭐</button>
             <button class="btn-del" onclick="event.stopPropagation(); delById(${t.id})">✕</button>
             `;
             card.addEventListener('click', () => selectTodo(t.id));
@@ -1193,6 +1197,7 @@ function updateSidebar(t, isNew) {
     loadTodoMemos(t.id);
     $ge('sb-status-field').style.display = '';
     $ge('sb-del-btn').style.display = '';
+    $ge('sb-star-btn').classList.toggle('starred', !!t.starred);
     const currentStatus = t.status || (t.done ? 'done' : 'todo');
     $qs(`input[name="sb-status"][value="${currentStatus}"]`).checked = true;
     sidebarTagIds = (t.tags ?? []).map(tg => tg.id);
@@ -1485,12 +1490,31 @@ async function delSelected() {
 
 /**
  * TODOの完了/未完切り替え
- * @param {number} id 
+ * @param {number} id
  */
 async function toggleById(id) {
     const t = allTodos.find(t => t.id === id);
     const status = t?.status || (t?.done ? 'done' : 'todo');
     await setStatusById(id, status === 'done' ? 'todo' : 'done');
+}
+
+/**
+ * TODOのスター（優先度）をON/OFFする。
+ * @param {number} id - 対象TODOのID
+ */
+async function toggleStarById(id) {
+    await apiFetch(`${TODO_API}/${id}/star`, { method: HTTP_METHOD_PATCH });
+    fetchTodos();
+}
+
+/**
+ * サイドバーで選択中のTODOのスターをON/OFFする。
+ */
+async function toggleStarSelected() {
+    if (selectedTodoId === null) {
+        return;
+    }
+    await toggleStarById(selectedTodoId);
 }
 
 /**

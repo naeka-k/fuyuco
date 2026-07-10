@@ -206,6 +206,22 @@ def set_todo_status(todo_id, status):
         return _attach_todo_labels(conn, [dict(row)])[0]
 
 
+def toggle_todo_starred(todo_id):
+    '''
+    TODOのスター（優先度）をON/OFFする関数
+    todo_idで指定されたTODOのstarredを0→1→0と切り替える。
+    成功した場合は更新されたTODOを返し、見つからない場合はNoneを返す
+    '''
+    with get_todo_conn() as conn:
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        if row is None:
+            return None
+        new_starred = 0 if row["starred"] else 1
+        conn.execute("UPDATE todos SET starred = ? WHERE id = ?", (new_starred, todo_id))
+        row = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+        return _attach_todo_labels(conn, [dict(row)])[0]
+
+
 def delete_todo(todo_id):
     '''
     TODOを削除する関数
