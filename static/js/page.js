@@ -821,7 +821,13 @@ function fmtDate(d) {
 
 function groupByDeadline(todos) {
     const map = new Map();
-    sortedTodos(todos.filter(t => !t.done)).forEach(t => {
+    // 優先タスク（starred）をリスト順で先頭グループに表示
+    const starred = todos.filter(t => !t.done && t.starred);
+    if (starred.length > 0) {
+        map.set('__starred__', starred);
+    }
+    // 通常タスクを期限でグループ化
+    sortedTodos(todos.filter(t => !t.done && !t.starred)).forEach(t => {
         const key = deadlineDatePart(t.deadline) ?? '__none__';
         if (!map.has(key)) {
             map.set(key, []);
@@ -841,6 +847,9 @@ function groupByDeadline(todos) {
  * @returns 
  */
 function groupLabel(key) {
+    if (key === '__starred__') {
+        return { text: '⭐ 優先', cls: 'starred' };
+    }
     if (key === '__done__') {
         return { text: '完了済み', cls: '' };
     }

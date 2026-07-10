@@ -339,6 +339,7 @@ body {
 }
 .group-label.overdue { color: #e38787; }
 .group-label.today { color: #eeb65e; }
+.group-label.starred { color: #8c6500; }
 .group-label-toggle {
   cursor: pointer;
   display: flex;
