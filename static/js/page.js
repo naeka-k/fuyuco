@@ -951,7 +951,7 @@ function renderKanban() {
             ${memo ? `<div class="kanban-card-memo">${escHtml(memo)}</div>` : ''}
             ${tagPills ? `<div class="card-tags" style="margin-top:6px">${tagPills}</div>` : ''}
             <div class="kanban-card-footer">
-            <div>${urlBtns}</div>
+            <div class="kanban-url-btns">${urlBtns}</div>
             <div class="kanban-move-btns">${moveBtnsHtml}</div>
             </div>
           `;

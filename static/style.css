@@ -1308,6 +1308,11 @@ body {
   word-break: break-word;
   white-space: pre-wrap;
 }
+.kanban-url-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
 .kanban-card-footer {
   display: flex;
   align-items: center;
