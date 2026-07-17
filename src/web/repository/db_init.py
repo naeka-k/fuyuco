@@ -20,6 +20,32 @@ def ensure_column(conn, table, column, definition):
         pass
 
 
+def drop_name_unique(conn, table):
+    '''nameカラムのUNIQUE制約をテーブルから削除する。
+    SQLiteはALTER TABLE DROP CONSTRAINTに対応していないため、テーブルを再作成する。
+    UNIQUE制約がない場合は何もしない。
+    '''
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone()
+    if row is None or 'UNIQUE' not in row['sql'].upper():
+        return
+    cols = ', '.join(r['name'] for r in conn.execute(f"PRAGMA table_info({table})").fetchall())
+    tmp = f'{table}_tmp'
+    conn.execute(f"ALTER TABLE {table} RENAME TO {tmp}")
+    conn.execute(f"""
+        CREATE TABLE {table} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            color TEXT NOT NULL DEFAULT '#93c5fd',
+            closed INTEGER NOT NULL DEFAULT 0,
+            closed_at TEXT
+        )
+    """)
+    conn.execute(f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {tmp}")
+    conn.execute(f"DROP TABLE {tmp}")
+
+
 def init_db():
     '''
     データベースを初期化する関数
@@ -60,11 +86,14 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_labels (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                color TEXT NOT NULL DEFAULT '#93c5fd'
+                name TEXT NOT NULL,
+                color TEXT NOT NULL DEFAULT '#93c5fd',
+                closed INTEGER NOT NULL DEFAULT 0
             )
         """)
+        drop_name_unique(conn, "todo_labels")
         ensure_column(conn, "todo_labels", "closed", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "todo_labels", "closed_at", "TEXT")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_label_links (
                 todo_id INTEGER NOT NULL,
@@ -121,11 +150,14 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS note_tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                color TEXT NOT NULL DEFAULT '#93c5fd'
+                name TEXT NOT NULL,
+                color TEXT NOT NULL DEFAULT '#93c5fd',
+                closed INTEGER NOT NULL DEFAULT 0
             )
         """)
+        drop_name_unique(conn, "note_tags")
         ensure_column(conn, "note_tags", "closed", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "note_tags", "closed_at", "TEXT")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS note_tag_links (
                 note_id INTEGER NOT NULL,

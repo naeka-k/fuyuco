@@ -343,11 +343,25 @@ def delete_todo_memo(memo_id):
 
 
 def update_todo_label(tag_id, name, color, closed):
+    '''TODOラベルを更新する関数。
+    初めてクローズする場合のみclosed_atに現在日時を記録する。
+    '''
     with get_todo_conn() as conn:
-        conn.execute(
-            "UPDATE todo_labels SET name = ?, color = ?, closed = ? WHERE id = ?",
-            (name, color, closed, tag_id)
-        )
+        cur = conn.execute(
+            "SELECT closed, closed_at FROM todo_labels WHERE id = ?", (tag_id,)
+        ).fetchone()
+        if cur is None:
+            return None
+        if closed and not cur['closed'] and cur['closed_at'] is None:
+            conn.execute(
+                "UPDATE todo_labels SET name = ?, color = ?, closed = ?, closed_at = datetime('now', 'localtime') WHERE id = ?",
+                (name, color, closed, tag_id)
+            )
+        else:
+            conn.execute(
+                "UPDATE todo_labels SET name = ?, color = ?, closed = ? WHERE id = ?",
+                (name, color, closed, tag_id)
+            )
         row = conn.execute(
             "SELECT * FROM todo_labels WHERE id = ?", (tag_id,)
         ).fetchone()

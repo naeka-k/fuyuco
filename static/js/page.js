@@ -2345,6 +2345,43 @@ setInterval(() => {
 }, 60000);
 
 // ── ラベル管理セクション ────────────────────────
+
+/**
+ * ラベル管理画面上部のツールバーを構築して返す。
+ *
+ * @returns {HTMLElement} ツールバーdiv
+ */
+function buildLabelToolbar() {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'label-mgmt-toolbar';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-add label-mgmt-add-btn';
+    addBtn.textContent = '＋ ラベル追加';
+    addBtn.addEventListener('click', addLabelFromDetail);
+    toolbar.appendChild(addBtn);
+    return toolbar;
+}
+
+/**
+ * ラベル管理画面からラベルを新規作成する。
+ * デフォルト名でラベルを作成し、作成されたラベルを選択状態にする。
+ */
+async function addLabelFromDetail() {
+    try {
+        const res = await apiFetch(TODO_LABELS_API, {
+            method: HTTP_METHOD_POST,
+            headers: JSON_HEADER,
+            body: JSON.stringify({ name: '', color: '#93c5fd' }),
+        });
+        const newLabel = await res.json();
+        allTodoLabels = [...allTodoLabels, newLabel];
+        activeLabelMgmtId = newLabel.id;
+        await renderLabelSection();
+    } catch (error) {
+        errorHandle(error, 'ラベルの追加に失敗しました', 'addLabelFromDetail failed.');
+    }
+}
+
 async function renderLabelSection() {
     try {
         const res = await apiFetch(TODO_LABELS_API);
@@ -2365,7 +2402,13 @@ async function renderLabelSection() {
             renderLabelManagementDetail(label);
         }
     } else {
-        $ge('label-mgmt-detail').innerHTML = '<p class="label-mgmt-empty">ラベルがありません。左のナビからラベルを追加してください。</p>';
+        const container = $ge('label-mgmt-detail');
+        container.innerHTML = '';
+        container.appendChild(buildLabelToolbar());
+        const empty = document.createElement('p');
+        empty.className = 'label-mgmt-empty';
+        empty.textContent = 'ラベルがありません。';
+        container.appendChild(empty);
     }
 }
 
@@ -2410,6 +2453,7 @@ function renderLabelSectionNav() {
 function renderLabelManagementDetail(label) {
     const container = $ge('label-mgmt-detail');
     container.innerHTML = '';
+    container.appendChild(buildLabelToolbar());
 
     const card = document.createElement('div');
     card.className = 'label-mgmt-group';
@@ -2444,20 +2488,17 @@ function renderLabelManagementDetail(label) {
 
     const closeRow = document.createElement('div');
     closeRow.className = 'label-mgmt-row';
-    const closeLabel = document.createElement('label');
-    closeLabel.className = 'label-mgmt-close-label';
-    const closeCb = document.createElement('input');
-    closeCb.type = 'checkbox';
-    closeCb.checked = !!label.closed;
-    closeCb.addEventListener('change', () => {
-        label.closed = closeCb.checked ? 1 : 0;
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = `btn-label-close${label.closed ? ' closed' : ''}`;
+    closeBtn.textContent = label.closed ? '復活' : 'クローズ';
+    closeBtn.addEventListener('click', () => {
+        label.closed = label.closed ? 0 : 1;
+        closeBtn.textContent = label.closed ? '復活' : 'クローズ';
+        closeBtn.classList.toggle('closed', !!label.closed);
         scheduleLabelSave(label);
     });
-    const closeSpan = document.createElement('span');
-    closeSpan.textContent = 'クローズ';
-    closeLabel.appendChild(closeCb);
-    closeLabel.appendChild(closeSpan);
-    closeRow.appendChild(closeLabel);
+    closeRow.appendChild(closeBtn);
 
     card.appendChild(nameRow);
     card.appendChild(closeRow);
