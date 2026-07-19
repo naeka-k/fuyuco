@@ -132,7 +132,7 @@ def update_todo_label_color_endpoint(tag_id: int, body: TagColorUpdate):
 
 @router.put("/api/todo-labels/{tag_id}")
 def update_todo_label_endpoint(tag_id: int, body: TagUpdate):
-    tag = update_todo_label(tag_id, body.name, body.color, body.closed)
+    tag = update_todo_label(tag_id, body.name, body.color, body.closed, body.memo)
     if tag is None:
         raise HTTPException(status_code=404, detail="Not found")
     return tag

@@ -18,9 +18,14 @@ def create_tag(conn, tag_table, name, color):
     '''
     新しいタグを作成する関数
     tag_tableで指定されたタグテーブルに、name、colorで指定された内容のタグを作成する。
+    created_atには現在日時を明示的に設定する（ALTER TABLEで追加された既存DBの
+    created_at列にはデフォルト値が効かないため）。
     作成に成功した場合は作成されたタグを返す
     '''
-    cur = conn.execute(f"INSERT INTO {tag_table} (name, color) VALUES (?, ?)",(name, color))
+    cur = conn.execute(
+        f"INSERT INTO {tag_table} (name, color, created_at) VALUES (?, ?, datetime('now', 'localtime'))",
+        (name, color)
+    )
     row = conn.execute(f"SELECT * FROM {tag_table} WHERE id = ?", (cur.lastrowid, )).fetchone()
     return dict(row)
 

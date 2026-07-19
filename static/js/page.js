@@ -208,6 +208,32 @@ const notifiedTodos = new Set();
 // ── ラベル管理状態 ──
 let labelSaveTimers = {};
 let activeLabelMgmtId = null;
+let labelMemoEditingId = null;
+const LABEL_MGMT_ACTIVE_KEY = 'fuyuco_active_label_id';
+
+/**
+ * 選択中のラベルIDをlocalStorageに保存する。
+ * ページをリロードしても選択状態を復元できるようにするために使う。
+ *
+ * @param {number|null} id
+ */
+function saveActiveLabelMgmtId(id) {
+    if (id === null) {
+        localStorage.removeItem(LABEL_MGMT_ACTIVE_KEY);
+    } else {
+        localStorage.setItem(LABEL_MGMT_ACTIVE_KEY, String(id));
+    }
+}
+
+/**
+ * localStorageに保存されている選択中ラベルIDを読み込む。
+ *
+ * @returns {number|null} 保存されていない場合はnull
+ */
+function loadActiveLabelMgmtId() {
+    const stored = localStorage.getItem(LABEL_MGMT_ACTIVE_KEY);
+    return stored === null ? null : Number(stored);
+}
 
 // ── セクション切替 ──────────────────────────
 function isTodo() {
@@ -2363,6 +2389,347 @@ function buildLabelToolbar() {
 }
 
 /**
+ * スプリットボタンを構築する。
+ * 主ボタンをクリックすると現在選択中の操作を実行し、
+ * ▼ボタンをクリックすると操作の切り替えメニューを開く。
+ *
+ * @param {{options: {label: string, onSelect: function}[], danger?: boolean}} config
+ * @returns {HTMLElement} スプリットボタン要素
+ */
+function buildSplitButton(config) {
+    let selected = 0;
+    const wrap = document.createElement('div');
+    wrap.className = `split-btn${config.danger ? ' split-btn-danger' : ''}`;
+
+    const mainBtn = document.createElement('button');
+    mainBtn.type = 'button';
+    mainBtn.className = 'split-btn-main';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'split-btn-toggle';
+    toggleBtn.textContent = '▼';
+
+    function refreshLabel() {
+        mainBtn.textContent = config.options[selected].label;
+    }
+    refreshLabel();
+
+    mainBtn.addEventListener('click', () => {
+        config.options[selected].onSelect();
+    });
+    toggleBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openSplitMenu(toggleBtn, config.options, selected, index => {
+            selected = index;
+            refreshLabel();
+        });
+    });
+
+    wrap.appendChild(mainBtn);
+    wrap.appendChild(toggleBtn);
+    fixSplitButtonMainWidth(mainBtn, wrap, config.options);
+    refreshLabel();
+    return wrap;
+}
+
+/**
+ * 選択中の操作によってボタンの大きさが変わらないよう、
+ * 全選択肢のうち最も幅が広いラベルに合わせて主ボタンの幅を固定する。
+ *
+ * @param {HTMLElement} mainBtn 主ボタン要素
+ * @param {HTMLElement} wrap スプリットボタン全体のラッパー要素
+ * @param {{label: string}[]} options 選択肢
+ */
+function fixSplitButtonMainWidth(mainBtn, wrap, options) {
+    wrap.style.position = 'fixed';
+    wrap.style.visibility = 'hidden';
+    document.body.appendChild(wrap);
+    let maxWidth = 0;
+    options.forEach(opt => {
+        mainBtn.textContent = opt.label;
+        maxWidth = Math.max(maxWidth, mainBtn.offsetWidth);
+    });
+    document.body.removeChild(wrap);
+    wrap.style.position = '';
+    wrap.style.visibility = '';
+    mainBtn.style.width = `${maxWidth}px`;
+}
+
+let cachedLabelActionButtonWidth = null;
+
+/**
+ * クローズ／復活／削除ボタンとして表示されうる全テキストのうち、
+ * 最も幅を必要とするものに合わせた共通のボタン幅（矢印部分を含む全体幅）を算出する。
+ * ラベルがクローズ済みか否かによらず常に同じ値になるよう、計算結果をキャッシュして使い回す。
+ *
+ * @returns {number} 共通のボタン幅(px)
+ */
+function getLabelActionButtonWidth() {
+    if (cachedLabelActionButtonWidth !== null) {
+        return cachedLabelActionButtonWidth;
+    }
+    let maxWidth = 0;
+
+    const splitWrap = document.createElement('div');
+    splitWrap.className = 'split-btn';
+    const splitMain = document.createElement('button');
+    splitMain.type = 'button';
+    splitMain.className = 'split-btn-main';
+    const splitToggle = document.createElement('button');
+    splitToggle.type = 'button';
+    splitToggle.className = 'split-btn-toggle';
+    splitToggle.textContent = '▼';
+    splitWrap.appendChild(splitMain);
+    splitWrap.appendChild(splitToggle);
+    splitWrap.style.position = 'fixed';
+    splitWrap.style.visibility = 'hidden';
+    document.body.appendChild(splitWrap);
+    ['クローズ', 'TODOをすべて完了にしてクローズ', '削除', 'TODOをすべて削除して削除'].forEach(text => {
+        splitMain.textContent = text;
+        maxWidth = Math.max(maxWidth, splitWrap.offsetWidth);
+    });
+    document.body.removeChild(splitWrap);
+
+    const single = document.createElement('button');
+    single.type = 'button';
+    single.className = 'btn-label-close';
+    single.textContent = '復活';
+    single.style.position = 'fixed';
+    single.style.visibility = 'hidden';
+    document.body.appendChild(single);
+    maxWidth = Math.max(maxWidth, single.offsetWidth);
+    document.body.removeChild(single);
+
+    cachedLabelActionButtonWidth = maxWidth;
+    return maxWidth;
+}
+
+/**
+ * クローズ（または復活）ボタンと削除ボタンの全体幅を揃える。
+ * ラベルの状態（クローズ済みか否か）によって表示されるテキストが変わっても
+ * 幅が変化しないよう、状態非依存の共通幅に合わせて主要部分の幅を調整する。
+ *
+ * @param {HTMLElement} closeEl buildLabelCloseButtonの戻り値
+ * @param {HTMLElement} deleteEl buildLabelDeleteButtonの戻り値
+ */
+function alignActionButtonWidths(closeEl, deleteEl) {
+    function mainOf(el) {
+        return el.querySelector('.split-btn-main') || el;
+    }
+    const target = getLabelActionButtonWidth();
+
+    closeEl.style.position = 'fixed';
+    closeEl.style.visibility = 'hidden';
+    deleteEl.style.position = 'fixed';
+    deleteEl.style.visibility = 'hidden';
+    document.body.appendChild(closeEl);
+    document.body.appendChild(deleteEl);
+
+    const closeMain = mainOf(closeEl);
+    const deleteMain = mainOf(deleteEl);
+    closeMain.style.width = `${closeMain.offsetWidth + (target - closeEl.offsetWidth)}px`;
+    deleteMain.style.width = `${deleteMain.offsetWidth + (target - deleteEl.offsetWidth)}px`;
+
+    document.body.removeChild(closeEl);
+    document.body.removeChild(deleteEl);
+    closeEl.style.position = '';
+    closeEl.style.visibility = '';
+    deleteEl.style.position = '';
+    deleteEl.style.visibility = '';
+}
+
+/**
+ * スプリットボタンの操作切り替えメニューを表示する。
+ *
+ * @param {Element} anchorEl アンカー要素
+ * @param {{label: string, onSelect: function}[]} options 選択肢
+ * @param {number} selectedIndex 現在選択中のインデックス
+ * @param {function} onPick 選択時に呼ばれるコールバック
+ */
+function openSplitMenu(anchorEl, options, selectedIndex, onPick) {
+    if (activePopup) {
+        activePopup.remove();
+        activePopup = null;
+    }
+    const menu = document.createElement('div');
+    menu.className = 'split-menu';
+    options.forEach((opt, index) => {
+        const item = document.createElement('div');
+        item.className = `split-menu-item${index === selectedIndex ? ' selected' : ''}`;
+        item.textContent = opt.label;
+        item.addEventListener('click', e => {
+            e.stopPropagation();
+            onPick(index);
+            menu.remove();
+            activePopup = null;
+        });
+        menu.appendChild(item);
+    });
+    menu.style.visibility = 'hidden';
+    document.body.appendChild(menu);
+    const menuRect = menu.getBoundingClientRect();
+    const anchorRect = anchorEl.getBoundingClientRect();
+    menu.style.left = `${Math.max(4, anchorRect.right - menuRect.width)}px`;
+    menu.style.top = `${anchorRect.bottom + 4}px`;
+    menu.style.visibility = '';
+    activePopup = menu;
+    setTimeout(() => {
+        document.addEventListener('click', function h(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                activePopup = null;
+                document.removeEventListener('click', h);
+            }
+        });
+    }, 0);
+}
+
+/**
+ * ラベルのクローズ／再開ボタンを構築する。
+ * クローズ済みの場合は「復活」ボタン、未クローズの場合は
+ * 「クローズ」と「TODOをすべて完了にしてクローズ」を切り替えられるスプリットボタンにする。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelCloseButton(label) {
+    if (label.closed) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-label-close closed';
+        btn.textContent = '復活';
+        btn.addEventListener('click', () => reopenLabel(label));
+        return btn;
+    }
+    return buildSplitButton({
+        options: [
+            { label: 'クローズ', onSelect: () => closeLabelOnly(label) },
+            { label: 'TODOをすべて完了にしてクローズ', onSelect: () => completeLabelTodosAndClose(label) },
+        ],
+    });
+}
+
+/**
+ * ラベルの削除ボタンを構築する。
+ * 「削除」と「TODOをすべて削除して削除」を切り替えられるスプリットボタンにする。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelDeleteButton(label) {
+    return buildSplitButton({
+        danger: true,
+        options: [
+            { label: '削除', onSelect: () => deleteLabelOnly(label) },
+            { label: 'TODOをすべて削除して削除', onSelect: () => deleteLabelTodosAndLabel(label) },
+        ],
+    });
+}
+
+/**
+ * ラベルをクローズする（付いているTODOはそのまま残す）。
+ *
+ * @param {data} label
+ */
+function closeLabelOnly(label) {
+    label.closed = 1;
+    scheduleLabelSave(label);
+    renderLabelManagementDetail(label);
+}
+
+/**
+ * ラベルのクローズを解除する。
+ *
+ * @param {data} label
+ */
+function reopenLabel(label) {
+    label.closed = 0;
+    scheduleLabelSave(label);
+    renderLabelManagementDetail(label);
+}
+
+/**
+ * このラベルが付いたTODOをすべて完了状態にしたうえで、ラベルをクローズする。
+ *
+ * @param {data} label
+ * @returns {Promise<void>}
+ */
+async function completeLabelTodosAndClose(label) {
+    if (!confirm(`ラベル「${label.name}」が付いたTODOをすべて完了にしてクローズしますか？`)) {
+        return;
+    }
+    try {
+        const res = await apiFetch(`${TODO_API}?tag_id=${label.id}`);
+        const todos = await res.json();
+        const unfinished = todos.filter(t => (t.status || (t.done ? 'done' : 'todo')) !== 'done');
+        await Promise.all(unfinished.map(t => apiFetch(`${TODO_API}/${t.id}/status`, {
+            method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
+            body: JSON.stringify({ status: 'done' }),
+        })));
+        clearTimeout(labelSaveTimers[label.id]);
+        delete labelSaveTimers[label.id];
+        label.closed = 1;
+        await saveLabelNow(label);
+        showToast('TODOを完了にしてラベルをクローズしました');
+        renderLabelManagementDetail(label);
+        renderTagNav();
+    } catch (error) {
+        errorHandle(error, '処理に失敗しました', 'completeLabelTodosAndClose failed.');
+    }
+}
+
+/**
+ * ラベルのみを削除する（付いているTODOは残す）。
+ *
+ * @param {data} label
+ * @returns {Promise<void>}
+ */
+async function deleteLabelOnly(label) {
+    if (!confirm(`ラベル「${label.name}」を削除しますか？`)) {
+        return;
+    }
+    try {
+        clearTimeout(labelSaveTimers[label.id]);
+        delete labelSaveTimers[label.id];
+        await apiFetch(`${TODO_LABELS_API}/${label.id}`, { method: HTTP_METHOD_DELETE });
+        if (activeLabelMgmtId === label.id) {
+            activeLabelMgmtId = null;
+        }
+        await renderLabelSection();
+    } catch (error) {
+        errorHandle(error, 'ラベルの削除に失敗しました', 'deleteLabelOnly failed.');
+    }
+}
+
+/**
+ * このラベルが付いたTODOをすべて削除したうえで、ラベルを削除する。
+ *
+ * @param {data} label
+ * @returns {Promise<void>}
+ */
+async function deleteLabelTodosAndLabel(label) {
+    if (!confirm(`ラベル「${label.name}」を、付いているTODOごとすべて削除しますか？この操作は元に戻せません。`)) {
+        return;
+    }
+    try {
+        const res = await apiFetch(`${TODO_API}?tag_id=${label.id}`);
+        const todos = await res.json();
+        await Promise.all(todos.map(t => apiFetch(`${TODO_API}/${t.id}`, { method: HTTP_METHOD_DELETE })));
+        clearTimeout(labelSaveTimers[label.id]);
+        delete labelSaveTimers[label.id];
+        await apiFetch(`${TODO_LABELS_API}/${label.id}`, { method: HTTP_METHOD_DELETE });
+        showToast('TODOとラベルを削除しました');
+        if (activeLabelMgmtId === label.id) {
+            activeLabelMgmtId = null;
+        }
+        await renderLabelSection();
+    } catch (error) {
+        errorHandle(error, '削除に失敗しました', 'deleteLabelTodosAndLabel failed.');
+    }
+}
+
+/**
  * ラベル管理画面からラベルを新規作成する。
  * デフォルト名でラベルを作成し、作成されたラベルを選択状態にする。
  */
@@ -2390,9 +2757,16 @@ async function renderLabelSection() {
         errorHandle(error, 'ラベルの取得に失敗しました', 'renderLabelSection failed.');
     }
 
+    if (activeLabelMgmtId === null) {
+        const stored = loadActiveLabelMgmtId();
+        if (stored !== null && allTodoLabels.find(t => t.id === stored)) {
+            activeLabelMgmtId = stored;
+        }
+    }
     if (activeLabelMgmtId === null || !allTodoLabels.find(t => t.id === activeLabelMgmtId)) {
         activeLabelMgmtId = allTodoLabels.length > 0 ? allTodoLabels[0].id : null;
     }
+    saveActiveLabelMgmtId(activeLabelMgmtId);
 
     renderTagNav();
 
@@ -2438,6 +2812,7 @@ function renderLabelSectionNav() {
         }
         li.addEventListener('click', () => {
             activeLabelMgmtId = label.id;
+            saveActiveLabelMgmtId(activeLabelMgmtId);
             renderTagNav();
             renderLabelManagementDetail(label);
         });
@@ -2446,9 +2821,10 @@ function renderLabelSectionNav() {
 }
 
 /**
- * ラベル管理画面の表示
- * 
- * @param {data} label 
+ * ラベル管理画面の表示。
+ * ラベル名・色に加え、作成日とクローズ日（クローズ済みの場合のみ）を表示する。
+ *
+ * @param {data} label
  */
 function renderLabelManagementDetail(label) {
     const container = $ge('label-mgmt-detail');
@@ -2483,31 +2859,103 @@ function renderLabelManagementDetail(label) {
         scheduleLabelSave(label);
     });
 
+    const closeBtn = buildLabelCloseButton(label);
+    const deleteBtn = buildLabelDeleteButton(label);
+    alignActionButtonWidths(closeBtn, deleteBtn);
+
+    const actions = document.createElement('div');
+    actions.className = 'label-mgmt-name-actions';
+    actions.appendChild(closeBtn);
+    actions.appendChild(deleteBtn);
+
     nameRow.appendChild(colorBtn);
     nameRow.appendChild(nameInput);
+    nameRow.appendChild(actions);
 
-    const closeRow = document.createElement('div');
-    closeRow.className = 'label-mgmt-row';
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = `btn-label-close${label.closed ? ' closed' : ''}`;
-    closeBtn.textContent = label.closed ? '復活' : 'クローズ';
-    closeBtn.addEventListener('click', () => {
-        label.closed = label.closed ? 0 : 1;
-        closeBtn.textContent = label.closed ? '復活' : 'クローズ';
-        closeBtn.classList.toggle('closed', !!label.closed);
-        scheduleLabelSave(label);
-    });
-    closeRow.appendChild(closeBtn);
+    const datesRow = document.createElement('div');
+    datesRow.className = 'label-mgmt-dates';
+    const createdText = label.created_at ? fmtDate(label.created_at) : '不明';
+    datesRow.textContent = (label.closed && label.closed_at)
+        ? `作成日：${createdText}　　クローズ日：${fmtDate(label.closed_at)}`
+        : `作成日：${createdText}`;
 
     card.appendChild(nameRow);
-    card.appendChild(closeRow);
+    card.appendChild(datesRow);
+    card.appendChild(buildLabelMemoField(label));
     container.appendChild(card);
 }
 
 /**
+ * ラベルのメモ欄を構築する。
+ * 普段は編集不可の表示のみで、「編集」ボタンを押すとテキストエリアで編集できるようになる。
+ * 編集中は「完了」ボタンで保留中の変更を即時保存し、表示のみの状態に戻す。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelMemoField(label) {
+    const field = document.createElement('div');
+    field.className = 'label-mgmt-memo-field';
+
+    const header = document.createElement('div');
+    header.className = 'label-mgmt-memo-header';
+    const headerLabel = document.createElement('label');
+    headerLabel.textContent = '概要';
+    header.appendChild(headerLabel);
+
+    const isEditing = labelMemoEditingId === label.id;
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'btn-memo-add';
+    toggleBtn.textContent = isEditing ? '完了' : '編集';
+    toggleBtn.addEventListener('click', async () => {
+        if (isEditing) {
+            await flushLabelSave(label);
+            labelMemoEditingId = null;
+        } else {
+            labelMemoEditingId = label.id;
+        }
+        renderLabelManagementDetail(label);
+    });
+    header.appendChild(toggleBtn);
+    field.appendChild(header);
+
+    if (isEditing) {
+        const textarea = document.createElement('textarea');
+        textarea.className = 'label-mgmt-memo-textarea';
+        textarea.value = label.memo ?? '';
+        textarea.addEventListener('input', () => {
+            label.memo = textarea.value;
+            scheduleLabelSave(label);
+        });
+        field.appendChild(textarea);
+    } else {
+        const view = document.createElement('div');
+        view.className = `label-mgmt-memo-view${label.memo ? '' : ' label-mgmt-memo-empty'}`;
+        view.textContent = label.memo || 'メモがありません';
+        field.appendChild(view);
+    }
+
+    return field;
+}
+
+/**
+ * ラベルの現在の内容（名前・色・クローズ状態・メモ）を即時保存する。
+ *
+ * @param {data} label
+ * @returns {Promise<void>}
+ */
+async function saveLabelNow(label) {
+    await apiFetch(`${TODO_LABELS_API}/${label.id}`, {
+        method: HTTP_METHOD_PUT,
+        headers: JSON_HEADER,
+        body: JSON.stringify({ name: label.name, color: label.color, closed: label.closed, memo: label.memo ?? '' }),
+    });
+}
+
+/**
  * ラベル画面の保存タイマー
- * @param {data} label 
+ * @param {data} label
  */
 function scheduleLabelSave(label) {
     if (labelSaveTimers[label.id]) {
@@ -2515,13 +2963,26 @@ function scheduleLabelSave(label) {
     }
     labelSaveTimers[label.id] = setTimeout(async () => {
         delete labelSaveTimers[label.id];
-        await apiFetch(`${TODO_LABELS_API}/${label.id}`, {
-            method: HTTP_METHOD_PUT,
-            headers: JSON_HEADER,
-            body: JSON.stringify({ name: label.name, color: label.color, closed: label.closed }),
-        });
+        await saveLabelNow(label);
         renderTagNav();
     }, AUTO_SAVE_DEBOUNCE);
+}
+
+/**
+ * 保留中のラベル保存タイマーがあれば即時実行して確定させる。
+ * メモ編集を終了する際など、デバウンスを待たずに確実に保存したい場合に使う。
+ *
+ * @param {data} label
+ * @returns {Promise<void>}
+ */
+async function flushLabelSave(label) {
+    if (!labelSaveTimers[label.id]) {
+        return;
+    }
+    clearTimeout(labelSaveTimers[label.id]);
+    delete labelSaveTimers[label.id];
+    await saveLabelNow(label);
+    renderTagNav();
 }
 
 // 初期ロード（URLハッシュでセクション決定）

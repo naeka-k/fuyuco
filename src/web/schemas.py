@@ -84,6 +84,7 @@ class TagUpdate(BaseModel):
     name: str
     color: str
     closed: int = 0
+    memo: str = ""
 
 class TodoMemoCreate(BaseModel):
     content: str = ""

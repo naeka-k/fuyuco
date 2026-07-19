@@ -39,7 +39,8 @@ def drop_name_unique(conn, table):
             name TEXT NOT NULL,
             color TEXT NOT NULL DEFAULT '#93c5fd',
             closed INTEGER NOT NULL DEFAULT 0,
-            closed_at TEXT
+            closed_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         )
     """)
     conn.execute(f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {tmp}")
@@ -88,12 +89,19 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 color TEXT NOT NULL DEFAULT '#93c5fd',
-                closed INTEGER NOT NULL DEFAULT 0
+                closed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                memo TEXT NOT NULL DEFAULT ''
             )
         """)
         drop_name_unique(conn, "todo_labels")
         ensure_column(conn, "todo_labels", "closed", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "todo_labels", "closed_at", "TEXT")
+        ensure_column(conn, "todo_labels", "created_at", "TEXT")
+        ensure_column(conn, "todo_labels", "memo", "TEXT NOT NULL DEFAULT ''")
+        conn.execute(
+            "UPDATE todo_labels SET created_at = datetime('now', 'localtime') WHERE created_at IS NULL"
+        )
         conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_label_links (
                 todo_id INTEGER NOT NULL,
@@ -152,12 +160,17 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 color TEXT NOT NULL DEFAULT '#93c5fd',
-                closed INTEGER NOT NULL DEFAULT 0
+                closed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
             )
         """)
         drop_name_unique(conn, "note_tags")
         ensure_column(conn, "note_tags", "closed", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "note_tags", "closed_at", "TEXT")
+        ensure_column(conn, "note_tags", "created_at", "TEXT")
+        conn.execute(
+            "UPDATE note_tags SET created_at = datetime('now', 'localtime') WHERE created_at IS NULL"
+        )
         conn.execute("""
             CREATE TABLE IF NOT EXISTS note_tag_links (
                 note_id INTEGER NOT NULL,
