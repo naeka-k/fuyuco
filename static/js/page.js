@@ -225,8 +225,9 @@ function isLabelSection() {
 
 /**
  * タブ選択時の表示処理。
- * 
- * @param {number} section 
+ *
+ * @param {number} section
+ * @returns {Promise} 一覧データの取得が完了したら解決されるPromise
  */
 function switchSection(section) {
     activeSection = section;
@@ -241,27 +242,30 @@ function switchSection(section) {
     $ge('note-section').style.display = section === 'note' ? '' : 'none';
     $ge('newTagColorBtn').style.background =
         isNote() ? noteSelectedColor : todoSelectedColor;
+    let loaded;
     if (isNote()) {
         $ge('tag-nav-title').textContent = 'タグ';
         $ge('tagInput').placeholder = '新しいタグ...';
         closeSidebar();
         renderTagNav();
-        fetchNoteTags().then(() => fetchNotes());
+        loaded = fetchNoteTags().then(() => fetchNotes());
     } else if (isLabelSection()) {
         $ge('tag-nav-title').textContent = 'ラベル';
         $ge('tagInput').placeholder = '新しいラベル...';
         closeSidebar();
         renderLabelSection();
+        loaded = Promise.resolve();
     } else {
         $ge('tag-nav-title').textContent = 'ラベル';
         $ge('tagInput').placeholder = '新しいラベル...';
-        fetchTodoLabels().then(() => fetchTodos());
+        loaded = fetchTodoLabels().then(() => fetchTodos());
         if (isKanban()) {
             closeSidebar();
         }
     }
     // ファビコンとタイトルの更新
     updatePageMeta(section);
+    return loaded;
 }
 
 // ── ファビコンとタイトルの更新 ──────────────────────────
@@ -271,6 +275,157 @@ function updatePageMeta(section) {
     if (faviconEl) {
         faviconEl.href = iconMap[section] || 'todo.png';
     }
+}
+
+// ── URL共有（ディープリンク） ──────────────────────────
+/**
+ * 指定したTODOを直接開くための共有用URLを生成する。
+ *
+ * @param {number} id 対象のTODO ID
+ * @returns {string} 共有用URL
+ */
+function buildTodoLink(id) {
+    return `${location.origin}${BASE}#todo-${id}`;
+}
+
+/**
+ * 指定したメモを直接開くための共有用URLを生成する。
+ *
+ * @param {number} id 対象のメモ ID
+ * @returns {string} 共有用URL
+ */
+function buildNoteLink(id) {
+    return `${location.origin}${BASE}#note-${id}`;
+}
+
+/**
+ * テキストをクリップボードにコピーし、結果をトーストで通知する。
+ *
+ * @param {string} text コピーする文字列
+ */
+function copyTextToClipboard(text) {
+    navigator.clipboard.writeText(text)
+        .then(() => showToast('リンクをコピーしました'))
+        .catch(() => showToast('リンクのコピーに失敗しました'));
+}
+
+/**
+ * 現在サイドバーで選択中のTODOの共有用リンクをクリップボードにコピーする。
+ *
+ * @returns {void}
+ */
+function copyTodoLink() {
+    if (selectedTodoId === null) {
+        return;
+    }
+    copyTextToClipboard(buildTodoLink(selectedTodoId));
+}
+
+/**
+ * 指定したメモの共有用リンクをクリップボードにコピーする。
+ *
+ * @param {number} id 対象のメモ ID
+ */
+function copyNoteLink(id) {
+    copyTextToClipboard(buildNoteLink(id));
+}
+
+/**
+ * 現在のURLハッシュを解析し、開くべきセクションと対象アイテムIDを判定する。
+ *
+ * @returns {{section: string, todoId: (number|null), noteId: (number|null)}} 解析結果
+ */
+function parseLocationHash() {
+    const hash = location.hash;
+    const todoMatch = hash.match(/^#todo-(\d+)$/);
+    if (todoMatch) {
+        return { section: 'todo', todoId: Number(todoMatch[1]), noteId: null };
+    }
+    const noteMatch = hash.match(/^#note-(\d+)$/);
+    if (noteMatch) {
+        return { section: 'note', todoId: null, noteId: Number(noteMatch[1]) };
+    }
+    if (hash === '#note' || hash === '#kanban' || hash === '#label') {
+        return { section: hash.slice(1), todoId: null, noteId: null };
+    }
+    return { section: 'todo', todoId: null, noteId: null };
+}
+
+/**
+ * URLハッシュにTODOまたはメモのIDが含まれている場合、
+ * 該当セクションを開いた上でそのアイテムを表示する。
+ *
+ * @returns {Promise<void>}
+ */
+async function openFromLocationHash() {
+    const { section, todoId, noteId } = parseLocationHash();
+    // タグ絞り込みで対象アイテムが一覧から除外されないよう、絞り込みを解除しておく
+    if (todoId !== null) {
+        activeTodoTagId = null;
+    } else if (noteId !== null) {
+        activeNoteTagId = null;
+    }
+    await switchSection(section);
+    if (todoId !== null) {
+        openTodoDeepLink(todoId);
+    } else if (noteId !== null) {
+        await openNoteDeepLink(noteId);
+    }
+}
+
+/**
+ * URL経由で指定されたTODOをサイドバーに表示し、一覧上でも見える位置までスクロールする。
+ *
+ * @param {number} id 表示するTODOのID
+ */
+function openTodoDeepLink(id) {
+    const t = allTodos.find(t => t.id === id);
+    if (!t) {
+        showToast('指定されたTODOが見つかりませんでした');
+        return;
+    }
+    if ((t.status || (t.done ? 'done' : 'todo')) === 'done') {
+        showDone = true;
+        render(allTodos);
+    }
+    selectTodo(id);
+    $qs(`.todo-card.selected`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/**
+ * URL経由で指定されたメモを一覧上でハイライト表示する。
+ * 通常一覧に無い場合はアーカイブ済み一覧も確認する。
+ *
+ * @param {number} id 表示するメモのID
+ */
+async function openNoteDeepLink(id) {
+    let note = allNotes.find(n => n.id === id);
+    if (!note) {
+        activeNoteTagId = 'archived';
+        await fetchNotes();
+        note = allNotes.find(n => n.id === id);
+    }
+    if (!note) {
+        showToast('指定されたメモが見つかりませんでした');
+        return;
+    }
+    history.replaceState(null, '', '#note-' + id);
+    highlightNoteCard(id);
+}
+
+/**
+ * 指定したIDのメモカードをスクロールして一時的にハイライトする。
+ *
+ * @param {number} id 対象のメモ ID
+ */
+function highlightNoteCard(id) {
+    const card = $qs(`.note-card[data-id="${id}"]`);
+    if (!card) {
+        return;
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.add('note-card-highlight');
+    setTimeout(() => card.classList.remove('note-card-highlight'), 2000);
 }
 
 /**
@@ -1068,12 +1223,20 @@ function render(todos) {
 }
 
 // ── サイドバー ──────────────────────────────
+/**
+ * TODOを選択してサイドバーに表示する。
+ * URLハッシュも選択中のTODO IDに合わせて更新し、そのURLを開けば
+ * 同じTODOを直接表示できるようにする。
+ *
+ * @param {number} id 選択するTODOのID
+ */
 function selectTodo(id) {
     selectedTodoId = id;
     isNewMode = false;
     const t = allTodos.find(t => t.id === id);
     updateSidebar(t, false);
     render(allTodos);
+    history.replaceState(null, '', '#todo-' + id);
 }
 /**
  * 画面
@@ -1274,15 +1437,21 @@ function getDefaultDeadline() {
 
 /**
  * サイドバーのクローズ。
- * 
+ * URLハッシュがTODO個別のリンクになっている場合は、現在のセクションの
+ * ハッシュに戻す。
+ *
  */
 function closeSidebar() {
+    const hadSelection = selectedTodoId !== null;
     selectedTodoId = null;
     isNewMode = false;
     Object.values(memoSaveTimers).forEach(t => clearTimeout(t));
     memoSaveTimers = {};
     $ge('sidebar').classList.remove('open');
     render(allTodos);
+    if (hadSelection) {
+        history.replaceState(null, '', '#' + activeSection);
+    }
 }
 
 /**
@@ -1644,6 +1813,15 @@ function buildCard(note) {
         openTagPopup(tagBtn, note.id, new Set(note.tags.map(t => t.id)));
     });
 
+    const linkBtn = document.createElement('button');
+    linkBtn.className = 'note-btn';
+    linkBtn.title = 'リンクをコピー';
+    linkBtn.textContent = '🔗';
+    linkBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        copyNoteLink(note.id);
+    });
+
     const archBtn = document.createElement('button');
     archBtn.className = 'note-btn';
     archBtn.title = activeNoteTagId === 'archived' ? 'アーカイブ解除' : 'アーカイブ';
@@ -1711,6 +1889,7 @@ function buildCard(note) {
     });
 
     actionsEl.appendChild(colorBtn);
+    actionsEl.appendChild(linkBtn);
     actionsEl.appendChild(editToggleBtn);
     actionsEl.appendChild(archBtn);
     actionsEl.appendChild(delBtn);
@@ -2483,6 +2662,11 @@ function scheduleLabelSave(label) {
     }, AUTO_SAVE_DEBOUNCE);
 }
 
-// 初期ロード（URLハッシュでセクション決定）
+// URLハッシュが外部から変更された場合（アドレスバー編集・共有リンクの再読込など）も追従する
+window.addEventListener('hashchange', () => {
+    openFromLocationHash();
+});
+
+// 初期ロード（URLハッシュでセクションおよび個別アイテムを決定）
 registerServiceWorker();
-switchSection(location.hash === '#note' ? 'note' : location.hash === '#kanban' ? 'kanban' : location.hash === '#label' ? 'label' : 'todo');
+openFromLocationHash();

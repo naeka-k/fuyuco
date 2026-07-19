@@ -525,10 +525,15 @@ body {
   top: 0;
   right: 0;
 }
-.sb-title-field > .btn-star-sb {
+.sb-title-field > .btn-link-sb {
   position: absolute;
   top: 0;
   right: 32px;
+}
+.sb-title-field > .btn-star-sb {
+  position: absolute;
+  top: 0;
+  right: 64px;
 }
 /* ── サイドバー: スターボタン ── */
 .btn-star-sb {
@@ -544,6 +549,19 @@ body {
 }
 .btn-star-sb:hover { opacity: .6; }
 .btn-star-sb.starred { opacity: 1; }
+/* ── サイドバー: リンクコピーボタン ── */
+.btn-link-sb {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: .4;
+  transition: opacity .12s;
+  line-height: 1;
+}
+.btn-link-sb:hover { opacity: 1; }
 .btn-trash-del {
   background: none;
   border: none;
@@ -972,6 +990,9 @@ body {
 .note-card.drag-over {
   outline: 2px dashed #3d82f0;
   outline-offset: 2px;
+}
+.note-card-highlight {
+  box-shadow: 0 0 0 3px #3d82f0;
 }
 
 .note-title {
