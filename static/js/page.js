@@ -209,6 +209,8 @@ const notifiedTodos = new Set();
 let labelSaveTimers = {};
 let activeLabelMgmtId = null;
 let labelMemoEditingId = null;
+let labelDetailTab = 'links';
+let editingLabelLinkId = null;
 const LABEL_MGMT_ACTIVE_KEY = 'fuyuco_active_label_id';
 
 /**
@@ -3061,6 +3063,7 @@ function renderLabelManagementDetail(label) {
     card.appendChild(nameRow);
     card.appendChild(datesRow);
     card.appendChild(buildLabelMemoField(label));
+    card.appendChild(buildLabelTabSection(label));
     container.appendChild(card);
 }
 
@@ -3116,6 +3119,305 @@ function buildLabelMemoField(label) {
     }
 
     return field;
+}
+
+/**
+ * ラベル詳細下部の「リンク」「TODO」切り替えタブと、その表示内容を構築する。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelTabSection(label) {
+    const section = document.createElement('div');
+    section.className = 'label-mgmt-tab-section';
+
+    const tabBar = document.createElement('div');
+    tabBar.className = 'label-mgmt-tabbar';
+
+    const linksTab = document.createElement('button');
+    linksTab.type = 'button';
+    linksTab.className = `label-mgmt-tab${labelDetailTab === 'links' ? ' active' : ''}`;
+    linksTab.textContent = 'リンク';
+    linksTab.addEventListener('click', () => {
+        if (labelDetailTab === 'links') {
+            return;
+        }
+        labelDetailTab = 'links';
+        renderLabelManagementDetail(label);
+    });
+
+    const todoTab = document.createElement('button');
+    todoTab.type = 'button';
+    todoTab.className = `label-mgmt-tab${labelDetailTab === 'todos' ? ' active' : ''}`;
+    todoTab.textContent = 'TODO';
+    todoTab.addEventListener('click', () => {
+        if (labelDetailTab === 'todos') {
+            return;
+        }
+        labelDetailTab = 'todos';
+        renderLabelManagementDetail(label);
+    });
+
+    tabBar.appendChild(linksTab);
+    tabBar.appendChild(todoTab);
+    section.appendChild(tabBar);
+
+    const content = document.createElement('div');
+    content.className = 'label-mgmt-tab-content';
+    section.appendChild(content);
+
+    if (labelDetailTab === 'links') {
+        renderLabelLinksTab(label, content);
+    } else {
+        renderLabelTodosTab(label, content);
+    }
+
+    return section;
+}
+
+/**
+ * 「リンク」タブの内容を表示する。
+ * ラベルに紐づくリンクの一覧を取得し、追加ボタンとともに表示する。
+ *
+ * @param {data} label
+ * @param {HTMLElement} content 表示先のコンテナ要素
+ * @returns {Promise<void>}
+ */
+async function renderLabelLinksTab(label, content) {
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn-add label-mgmt-link-add-btn';
+    addBtn.textContent = '＋ リンク追加';
+    addBtn.addEventListener('click', () => addLabelLink(label));
+    content.appendChild(addBtn);
+
+    const list = document.createElement('div');
+    list.className = 'label-mgmt-link-list';
+    content.appendChild(list);
+
+    try {
+        const res = await apiFetch(`${TODO_LABELS_API}/${label.id}/links`);
+        const links = await res.json();
+        if (links.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'label-mgmt-empty';
+            empty.textContent = 'リンクがありません。';
+            list.appendChild(empty);
+            return;
+        }
+        links.forEach(link => list.appendChild(buildLabelLinkRow(label, link)));
+    } catch (error) {
+        errorHandle(error, 'リンクの取得に失敗しました', 'renderLabelLinksTab failed.');
+    }
+}
+
+/**
+ * リンク一覧の1行分の要素を構築する。
+ * 編集中の場合はタイトル・URLの入力欄を、それ以外は表示用の行を返す。
+ *
+ * @param {data} label
+ * @param {data} link
+ * @returns {HTMLElement}
+ */
+function buildLabelLinkRow(label, link) {
+    const row = document.createElement('div');
+    row.className = 'label-mgmt-link-row';
+
+    if (editingLabelLinkId === link.id) {
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.className = 'label-mgmt-link-input';
+        titleInput.placeholder = 'タイトル';
+        titleInput.value = link.title;
+
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.className = 'label-mgmt-link-input';
+        urlInput.placeholder = 'URL';
+        urlInput.value = link.url;
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn-icon';
+        saveBtn.title = '保存';
+        saveBtn.textContent = '✓';
+        saveBtn.addEventListener('click', () => {
+            saveLabelLink(label, link.id, titleInput.value, urlInput.value);
+        });
+
+        row.appendChild(titleInput);
+        row.appendChild(urlInput);
+        row.appendChild(saveBtn);
+        return row;
+    }
+
+    const title = document.createElement('span');
+    title.className = 'label-mgmt-link-title';
+    title.textContent = link.title || link.url || '(無題)';
+
+    const actions = document.createElement('div');
+    actions.className = 'label-mgmt-link-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn-icon';
+    editBtn.title = '編集';
+    editBtn.textContent = '✎';
+    editBtn.addEventListener('click', () => {
+        editingLabelLinkId = link.id;
+        renderLabelManagementDetail(label);
+    });
+
+    const openBtn = document.createElement('a');
+    openBtn.className = 'btn-icon';
+    openBtn.title = '開く';
+    openBtn.textContent = '🔗';
+    openBtn.href = link.url || '#';
+    openBtn.target = '_blank';
+    openBtn.rel = 'noopener noreferrer';
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-icon';
+    delBtn.title = '削除';
+    delBtn.textContent = '🗑';
+    delBtn.addEventListener('click', () => deleteLabelLink(label, link.id));
+
+    actions.appendChild(editBtn);
+    actions.appendChild(openBtn);
+    actions.appendChild(delBtn);
+    row.appendChild(title);
+    row.appendChild(actions);
+    return row;
+}
+
+/**
+ * ラベルに新しいリンクを追加し、作成直後から編集状態にする。
+ *
+ * @param {data} label
+ * @returns {Promise<void>}
+ */
+async function addLabelLink(label) {
+    try {
+        const res = await apiFetch(`${TODO_LABELS_API}/${label.id}/links`, {
+            method: HTTP_METHOD_POST,
+            headers: JSON_HEADER,
+            body: JSON.stringify({ title: '新しいリンク', url: '' }),
+        });
+        const newLink = await res.json();
+        editingLabelLinkId = newLink.id;
+        renderLabelManagementDetail(label);
+    } catch (error) {
+        errorHandle(error, 'リンクの追加に失敗しました', 'addLabelLink failed.');
+    }
+}
+
+/**
+ * リンクのタイトル・URLを保存し、編集状態を終了する。
+ *
+ * @param {data} label
+ * @param {number} linkId
+ * @param {string} title
+ * @param {string} url
+ * @returns {Promise<void>}
+ */
+async function saveLabelLink(label, linkId, title, url) {
+    try {
+        await apiFetch(`${TODO_LABELS_API}/${label.id}/links/${linkId}`, {
+            method: HTTP_METHOD_PUT,
+            headers: JSON_HEADER,
+            body: JSON.stringify({ title, url }),
+        });
+        editingLabelLinkId = null;
+        renderLabelManagementDetail(label);
+    } catch (error) {
+        errorHandle(error, 'リンクの保存に失敗しました', 'saveLabelLink failed.');
+    }
+}
+
+/**
+ * リンクを削除する。
+ *
+ * @param {data} label
+ * @param {number} linkId
+ * @returns {Promise<void>}
+ */
+async function deleteLabelLink(label, linkId) {
+    if (!confirm('このリンクを削除しますか？')) {
+        return;
+    }
+    try {
+        await apiFetch(`${TODO_LABELS_API}/${label.id}/links/${linkId}`, { method: HTTP_METHOD_DELETE });
+        renderLabelManagementDetail(label);
+    } catch (error) {
+        errorHandle(error, 'リンクの削除に失敗しました', 'deleteLabelLink failed.');
+    }
+}
+
+/**
+ * 「TODO」タブの内容を表示する。
+ * このラベルが付いたTODOの一覧を取得して表示する。
+ *
+ * @param {data} label
+ * @param {HTMLElement} content 表示先のコンテナ要素
+ * @returns {Promise<void>}
+ */
+async function renderLabelTodosTab(label, content) {
+    const list = document.createElement('div');
+    list.className = 'label-mgmt-todo-list';
+    content.appendChild(list);
+
+    try {
+        const res = await apiFetch(`${TODO_API}?tag_id=${label.id}`);
+        const todos = await res.json();
+        if (todos.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'label-mgmt-empty';
+            empty.textContent = 'TODOがありません。';
+            list.appendChild(empty);
+            return;
+        }
+        todos.forEach(t => list.appendChild(buildLabelTodoRow(t)));
+    } catch (error) {
+        errorHandle(error, 'TODOの取得に失敗しました', 'renderLabelTodosTab failed.');
+    }
+}
+
+/**
+ * TODO一覧の1行分の要素を構築する。クリックするとTODO画面へ移動して選択状態にする。
+ *
+ * @param {data} t TODOデータ
+ * @returns {HTMLElement}
+ */
+function buildLabelTodoRow(t) {
+    const row = document.createElement('div');
+    row.className = `label-mgmt-todo-row${(t.status || (t.done ? 'done' : 'todo')) === 'done' ? ' done' : ''}`;
+
+    const title = document.createElement('span');
+    title.className = 'label-mgmt-todo-title';
+    title.textContent = t.title || '（無題）';
+    row.appendChild(title);
+
+    if (t.deadline) {
+        const deadline = document.createElement('span');
+        deadline.className = 'label-mgmt-todo-deadline';
+        deadline.textContent = fmtDate(t.deadline);
+        row.appendChild(deadline);
+    }
+
+    row.addEventListener('click', () => openTodoFromLabel(t.id));
+    return row;
+}
+
+/**
+ * TODO画面に切り替えて、指定したTODOを選択状態にする。
+ *
+ * @param {number} todoId
+ * @returns {Promise<void>}
+ */
+async function openTodoFromLabel(todoId) {
+    await switchSection('todo');
+    selectTodo(todoId);
 }
 
 /**

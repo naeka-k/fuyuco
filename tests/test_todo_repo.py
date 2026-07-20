@@ -1,17 +1,21 @@
 import pytest
 
 from web.repository.todo_repo import (
+    create_label_link,
     create_todo,
     create_todo_label,
     create_todo_memo,
+    delete_label_link,
     delete_todo,
     delete_todo_label,
     delete_todo_memo,
     get_all_todo_labels,
     get_all_todos,
+    get_label_links,
     get_todo_memos,
     set_todo_status,
     toggle_todo,
+    update_label_link,
     update_todo,
     update_todo_label,
     update_todo_label_color,
@@ -348,4 +352,45 @@ class TestUpdateTodoLabel:
         assert fetched["name"] == "Updated"
         assert fetched["color"] == "#00ff00"
         assert fetched["closed"] == 1
+
+
+class TestLabelLinks:
+    def test_create_link(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        link = create_label_link(label["id"], "Backlog", "https://example.com")
+        assert link["label_id"] == label["id"]
+        assert link["title"] == "Backlog"
+        assert link["url"] == "https://example.com"
+
+    def test_get_links_empty(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        assert get_label_links(label["id"]) == []
+
+    def test_get_links_returns_only_own_label(self, db):
+        label1 = create_todo_label("Work", "#ff0000")
+        label2 = create_todo_label("Home", "#00ff00")
+        create_label_link(label1["id"], "A", "https://a.example.com")
+        create_label_link(label2["id"], "B", "https://b.example.com")
+        links = get_label_links(label1["id"])
+        assert len(links) == 1
+        assert links[0]["title"] == "A"
+
+    def test_update_link(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        link = create_label_link(label["id"], "Old", "https://old.example.com")
+        updated = update_label_link(link["id"], "New", "https://new.example.com")
+        assert updated["title"] == "New"
+        assert updated["url"] == "https://new.example.com"
+
+    def test_update_missing_link_returns_none(self, db):
+        assert update_label_link(9999, "Name", "https://example.com") is None
+
+    def test_delete_link(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        link = create_label_link(label["id"], "Old", "https://old.example.com")
+        assert delete_label_link(link["id"]) is True
+        assert get_label_links(label["id"]) == []
+
+    def test_delete_missing_link_returns_false(self, db):
+        assert delete_label_link(9999) is False
 

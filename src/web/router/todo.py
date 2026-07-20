@@ -4,7 +4,10 @@ TODO関連のAPIエンドポイントを定義するモジュール
 各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
 '''
 from fastapi import APIRouter, HTTPException, Query
-from ..schemas import TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate, TagUpdate, TodoMemoCreate, TodoMemoUpdate
+from ..schemas import (
+    TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate, TagUpdate,
+    TodoMemoCreate, TodoMemoUpdate, LabelLinkCreate, LabelLinkUpdate,
+)
 from ..repository import (
     get_all_todos,
     create_todo,
@@ -22,6 +25,10 @@ from ..repository import (
     create_todo_memo,
     update_todo_memo,
     delete_todo_memo,
+    get_label_links,
+    create_label_link,
+    update_label_link,
+    delete_label_link,
 )
 
 router = APIRouter()
@@ -165,4 +172,28 @@ def update_todo_memo_endpoint(todo_id: int, memo_id: int, body: TodoMemoUpdate):
 @router.delete("/api/todos/{todo_id}/memos/{memo_id}", status_code=204)
 def delete_todo_memo_endpoint(todo_id: int, memo_id: int):
     if not delete_todo_memo(memo_id):
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.get("/api/todo-labels/{tag_id}/links")
+def list_label_links(tag_id: int):
+    return get_label_links(tag_id)
+
+
+@router.post("/api/todo-labels/{tag_id}/links", status_code=201)
+def create_label_link_endpoint(tag_id: int, body: LabelLinkCreate):
+    return create_label_link(tag_id, body.title, body.url)
+
+
+@router.put("/api/todo-labels/{tag_id}/links/{link_id}")
+def update_label_link_endpoint(tag_id: int, link_id: int, body: LabelLinkUpdate):
+    link = update_label_link(link_id, body.title, body.url)
+    if link is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return link
+
+
+@router.delete("/api/todo-labels/{tag_id}/links/{link_id}", status_code=204)
+def delete_label_link_endpoint(tag_id: int, link_id: int):
+    if not delete_label_link(link_id):
         raise HTTPException(status_code=404, detail="Not found")

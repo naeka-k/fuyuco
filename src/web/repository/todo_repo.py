@@ -407,3 +407,58 @@ def delete_todo_label(tag_id):
     '''
     with get_todo_conn() as conn:
         return delete_tag(conn, "todo_labels", "todo_label_links", tag_id)
+
+
+def get_label_links(label_id):
+    '''ラベルに紐づくリンクの一覧を取得する関数。
+    label_idで指定されたラベルのリンクを、作成日時の昇順で返す。
+    '''
+    with get_todo_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM label_links WHERE label_id = ? ORDER BY id",
+            (label_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def create_label_link(label_id, title, url):
+    '''ラベルにリンクを新規作成する関数。
+    作成に成功した場合は作成されたリンクを返す。
+    '''
+    with get_todo_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO label_links (label_id, title, url) VALUES (?, ?, ?)",
+            (label_id, title, url)
+        )
+        row = conn.execute(
+            "SELECT * FROM label_links WHERE id = ?", (cur.lastrowid,)
+        ).fetchone()
+        return dict(row)
+
+
+def update_label_link(link_id, title, url):
+    '''ラベルのリンクを更新する関数。
+    更新に成功した場合は更新されたリンクを返し、リンクが見つからない場合はNoneを返す。
+    '''
+    with get_todo_conn() as conn:
+        cur = conn.execute(
+            "UPDATE label_links SET title = ?, url = ? WHERE id = ?",
+            (title, url, link_id)
+        )
+        if cur.rowcount == 0:
+            return None
+        row = conn.execute(
+            "SELECT * FROM label_links WHERE id = ?", (link_id,)
+        ).fetchone()
+        return dict(row)
+
+
+def delete_label_link(link_id):
+    '''ラベルのリンクを削除する関数。
+    削除に成功した場合はTrueを返し、リンクが見つからない場合はFalseを返す。
+    '''
+    with get_todo_conn() as conn:
+        affected = conn.execute(
+            "DELETE FROM label_links WHERE id = ?", (link_id,)
+        ).rowcount
+        return affected > 0

@@ -91,3 +91,17 @@ class TodoMemoCreate(BaseModel):
 
 class TodoMemoUpdate(BaseModel):
     content: str = ""
+
+class LabelLinkCreate(BaseModel):
+    '''
+    ラベルのリンク作成に必要なフィールドを定義するモデル
+    '''
+    title: str = ""
+    url: str = ""
+
+class LabelLinkUpdate(BaseModel):
+    '''
+    ラベルのリンク更新に必要なフィールドを定義するモデル
+    '''
+    title: str = ""
+    url: str = ""

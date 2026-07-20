@@ -110,6 +110,15 @@ def init_db():
             )
         """)
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS label_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label_id INTEGER NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                url TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+            )
+        """)
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS todo_memos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 todo_id INTEGER NOT NULL,
