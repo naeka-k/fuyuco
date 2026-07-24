@@ -209,7 +209,7 @@ const notifiedTodos = new Set();
 let labelSaveTimers = {};
 let activeLabelMgmtId = null;
 let labelMemoEditingId = null;
-let labelDetailTab = 'links';
+let labelDetailTab = 'memo';
 let editingLabelLinkId = null;
 const LABEL_MGMT_ACTIVE_KEY = 'fuyuco_active_label_id';
 
@@ -3062,15 +3062,14 @@ function renderLabelManagementDetail(label) {
 
     card.appendChild(nameRow);
     card.appendChild(datesRow);
-    card.appendChild(buildLabelMemoField(label));
     card.appendChild(buildLabelTabSection(label));
     container.appendChild(card);
 }
 
 /**
- * ラベルのメモ欄を構築する。
- * 普段は編集不可の表示のみで、「編集」ボタンを押すとテキストエリアで編集できるようになる。
- * 編集中は「完了」ボタンで保留中の変更を即時保存し、表示のみの状態に戻す。
+ * ラベルのメモ欄（「概要」タブの中身）を構築する。
+ * 普段は表示のみで、クリックしてカーソルを合わせると編集モードになる。
+ * フォーカスを外す（確定する）と保留中の変更を即時保存し、表示のみの状態に戻る。
  *
  * @param {data} label
  * @returns {HTMLElement}
@@ -3079,30 +3078,7 @@ function buildLabelMemoField(label) {
     const field = document.createElement('div');
     field.className = 'label-mgmt-memo-field';
 
-    const header = document.createElement('div');
-    header.className = 'label-mgmt-memo-header';
-    const headerLabel = document.createElement('label');
-    headerLabel.textContent = '概要';
-    header.appendChild(headerLabel);
-
-    const isEditing = labelMemoEditingId === label.id;
-    const toggleBtn = document.createElement('button');
-    toggleBtn.type = 'button';
-    toggleBtn.className = 'btn-memo-add';
-    toggleBtn.textContent = isEditing ? '完了' : '編集';
-    toggleBtn.addEventListener('click', async () => {
-        if (isEditing) {
-            await flushLabelSave(label);
-            labelMemoEditingId = null;
-        } else {
-            labelMemoEditingId = label.id;
-        }
-        renderLabelManagementDetail(label);
-    });
-    header.appendChild(toggleBtn);
-    field.appendChild(header);
-
-    if (isEditing) {
+    if (labelMemoEditingId === label.id) {
         const textarea = document.createElement('textarea');
         textarea.className = 'label-mgmt-memo-textarea';
         textarea.value = label.memo ?? '';
@@ -3110,11 +3086,25 @@ function buildLabelMemoField(label) {
             label.memo = textarea.value;
             scheduleLabelSave(label);
         });
+        textarea.addEventListener('blur', async () => {
+            await flushLabelSave(label);
+            labelMemoEditingId = null;
+            renderLabelManagementDetail(label);
+        });
         field.appendChild(textarea);
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }, 0);
     } else {
         const view = document.createElement('div');
         view.className = `label-mgmt-memo-view${label.memo ? '' : ' label-mgmt-memo-empty'}`;
         view.textContent = label.memo || 'メモがありません';
+        view.tabIndex = 0;
+        view.addEventListener('click', () => {
+            labelMemoEditingId = label.id;
+            renderLabelManagementDetail(label);
+        });
         field.appendChild(view);
     }
 
@@ -3122,7 +3112,7 @@ function buildLabelMemoField(label) {
 }
 
 /**
- * ラベル詳細下部の「リンク」「TODO」切り替えタブと、その表示内容を構築する。
+ * ラベル詳細の「概要」「リンク」「TODO」切り替えタブと、その表示内容を構築する。
  *
  * @param {data} label
  * @returns {HTMLElement}
@@ -3134,39 +3124,33 @@ function buildLabelTabSection(label) {
     const tabBar = document.createElement('div');
     tabBar.className = 'label-mgmt-tabbar';
 
-    const linksTab = document.createElement('button');
-    linksTab.type = 'button';
-    linksTab.className = `label-mgmt-tab${labelDetailTab === 'links' ? ' active' : ''}`;
-    linksTab.textContent = 'リンク';
-    linksTab.addEventListener('click', () => {
-        if (labelDetailTab === 'links') {
-            return;
-        }
-        labelDetailTab = 'links';
-        renderLabelManagementDetail(label);
+    [
+        { key: 'memo', label: '概要' },
+        { key: 'links', label: 'リンク' },
+        { key: 'todos', label: 'TODO' },
+    ].forEach(tab => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `label-mgmt-tab${labelDetailTab === tab.key ? ' active' : ''}`;
+        btn.textContent = tab.label;
+        btn.addEventListener('click', () => {
+            if (labelDetailTab === tab.key) {
+                return;
+            }
+            labelDetailTab = tab.key;
+            renderLabelManagementDetail(label);
+        });
+        tabBar.appendChild(btn);
     });
-
-    const todoTab = document.createElement('button');
-    todoTab.type = 'button';
-    todoTab.className = `label-mgmt-tab${labelDetailTab === 'todos' ? ' active' : ''}`;
-    todoTab.textContent = 'TODO';
-    todoTab.addEventListener('click', () => {
-        if (labelDetailTab === 'todos') {
-            return;
-        }
-        labelDetailTab = 'todos';
-        renderLabelManagementDetail(label);
-    });
-
-    tabBar.appendChild(linksTab);
-    tabBar.appendChild(todoTab);
     section.appendChild(tabBar);
 
     const content = document.createElement('div');
     content.className = 'label-mgmt-tab-content';
     section.appendChild(content);
 
-    if (labelDetailTab === 'links') {
+    if (labelDetailTab === 'memo') {
+        content.appendChild(buildLabelMemoField(label));
+    } else if (labelDetailTab === 'links') {
         renderLabelLinksTab(label, content);
     } else {
         renderLabelTodosTab(label, content);
