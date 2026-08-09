@@ -190,7 +190,7 @@ let isNewMode = false;
 let sortAsc = true;
 let autoSaveTimer = null;
 let originalTask = null;
-let showDone = false;
+let collapsedTodoGroups = new Set(['__done__']);
 let todoSelectedColor = TAG_PRESET_COLORS[5];
 
 // ── Note 状態 ──
@@ -413,7 +413,7 @@ function openTodoDeepLink(id) {
         return;
     }
     if ((t.status || (t.done ? 'done' : 'todo')) === 'done') {
-        showDone = true;
+        collapsedTodoGroups.delete('__done__');
         render(allTodos);
     }
     selectTodo(id);
@@ -1173,22 +1173,21 @@ function render(todos) {
 
     groupByDeadline(todos).forEach((items, key) => {
         const { text, cls } = groupLabel(key);
+        const isCollapsed = collapsedTodoGroups.has(key);
         const label = document.createElement('div');
-        label.className = `group-label ${cls}`;
-        if (key === '__done__') {
-            label.classList.add('group-label-toggle');
-            label.innerHTML = `<span>${text}（${items.length}件）</span><span class="done-arrow">${showDone ? '▼' : '▶'}</span>`;
-            label.addEventListener('click', () => {
-                showDone = !showDone;
-                render(allTodos);
-            });
-            list.appendChild(label);
-            if (!showDone) {
-                return;
+        label.className = `group-label ${cls} group-label-toggle`;
+        label.innerHTML = `<span>${text}（${items.length}件）</span><span class="group-arrow">${isCollapsed ? '▶' : '▼'}</span>`;
+        label.addEventListener('click', () => {
+            if (isCollapsed) {
+                collapsedTodoGroups.delete(key);
+            } else {
+                collapsedTodoGroups.add(key);
             }
-        } else {
-            label.textContent = text;
-            list.appendChild(label);
+            render(allTodos);
+        });
+        list.appendChild(label);
+        if (isCollapsed) {
+            return;
         }
 
         items.forEach(t => {

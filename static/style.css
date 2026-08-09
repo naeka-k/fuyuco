@@ -348,7 +348,7 @@ body {
   user-select: none;
 }
 .group-label-toggle:hover { color: #488de7; }
-.done-arrow { font-size: .75rem; }
+.group-arrow { font-size: .75rem; }
 
 .todo-card {
   background: #fff;
