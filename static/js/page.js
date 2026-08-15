@@ -210,7 +210,8 @@ let labelSaveTimers = {};
 let activeLabelMgmtId = null;
 let labelMemoEditingId = null;
 let editingLabelLinkId = null;
-let labelSectionCollapsed = { memo: false, links: false };
+let labelSectionCollapsed = { memo: false, links: false, timeline: false };
+let labelDetailTab = 'overview';
 const LABEL_MGMT_ACTIVE_KEY = 'fuyuco_active_label_id';
 
 /**
@@ -1678,19 +1679,18 @@ async function setStatusById(id, status) {
 
 /**
  * 選択したTODOの削除処理。
- * 
- * @returns 
+ * 削除確認は delById 内で行うため、ここでは確認しない。
+ *
+ * @returns {Promise<void>}
  */
 async function delSelected() {
     if (selectedTodoId === null) {
         return;
     }
-    const t = allTodos.find(t => t.id === selectedTodoId);
-    if (!confirm(DELETE_TODO_MSG(t?.title))) {
-        return;
+    const deleted = await delById(selectedTodoId);
+    if (deleted) {
+        closeSidebar();
     }
-    await delById(selectedTodoId);
-    closeSidebar();
 }
 
 /**
@@ -1723,15 +1723,15 @@ async function toggleStarSelected() {
 }
 
 /**
- * TODOの削除処理。
- * 
- * @param {number} id 
- * @returns 
+ * TODOの削除処理。確認ダイアログでキャンセルした場合は何もしない。
+ *
+ * @param {number} id
+ * @returns {Promise<boolean>} 削除を実行した場合はtrue、キャンセルした場合はfalse
  */
 async function delById(id) {
     const t = allTodos.find(t => t.id === id);
     if (!confirm(DELETE_TODO_MSG(t?.title))) {
-        return;
+        return false;
     }
     if (selectedTodoId === id) {
         selectedTodoId = null;
@@ -1739,6 +1739,7 @@ async function delById(id) {
     }
     await apiFetch(`${TODO_API}/${id}`, { method: 'DELETE' });
     fetchTodos();
+    return true;
 }
 
 // ── Note タグ ───────────────────────────────
@@ -3001,6 +3002,32 @@ function renderLabelManagementDetail(label) {
         scheduleLabelSave(label);
     });
 
+    nameRow.appendChild(colorBtn);
+    nameRow.appendChild(nameInput);
+
+    card.appendChild(nameRow);
+    card.appendChild(buildLabelDetailTabSection(label));
+    container.appendChild(card);
+}
+
+/**
+ * ラベルの作成日・クローズ日と、クローズ／削除ボタンを表示する行を構築する。
+ * 日付は左寄せ、クローズ・削除ボタンは同じ行の右寄せで表示する。
+ * クローズ済みの場合のみクローズ日も表示する。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelDatesRow(label) {
+    const datesRow = document.createElement('div');
+    datesRow.className = 'label-mgmt-dates';
+
+    const dateText = document.createElement('span');
+    const createdText = label.created_at ? fmtDate(label.created_at) : '不明';
+    dateText.textContent = (label.closed && label.closed_at)
+        ? `作成日：${createdText}　　クローズ日：${fmtDate(label.closed_at)}`
+        : `作成日：${createdText}`;
+
     const closeBtn = buildLabelCloseButton(label);
     const deleteBtn = buildLabelDeleteButton(label);
     alignActionButtonWidths(closeBtn, deleteBtn);
@@ -3010,22 +3037,57 @@ function renderLabelManagementDetail(label) {
     actions.appendChild(closeBtn);
     actions.appendChild(deleteBtn);
 
-    nameRow.appendChild(colorBtn);
-    nameRow.appendChild(nameInput);
-    nameRow.appendChild(actions);
+    datesRow.appendChild(dateText);
+    datesRow.appendChild(actions);
+    return datesRow;
+}
 
-    const datesRow = document.createElement('div');
-    datesRow.className = 'label-mgmt-dates';
-    const createdText = label.created_at ? fmtDate(label.created_at) : '不明';
-    datesRow.textContent = (label.closed && label.closed_at)
-        ? `作成日：${createdText}　　クローズ日：${fmtDate(label.closed_at)}`
-        : `作成日：${createdText}`;
+/**
+ * ラベル詳細の「概要」「タイムライン」切り替えタブと、その表示内容を構築する。
+ * 「概要」タブには作成日欄・メモ欄・リンク欄を、「タイムライン」タブにはタイムライン欄を表示する。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelDetailTabSection(label) {
+    const section = document.createElement('div');
+    section.className = 'label-mgmt-tab-section';
 
-    card.appendChild(nameRow);
-    card.appendChild(datesRow);
-    card.appendChild(buildLabelMemoField(label));
-    card.appendChild(buildLabelLinksSection(label));
-    container.appendChild(card);
+    const tabBar = document.createElement('div');
+    tabBar.className = 'label-mgmt-tabbar';
+
+    [
+        { key: 'overview', label: '概要' },
+        { key: 'timeline', label: 'タイムライン' },
+    ].forEach(tab => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `label-mgmt-tab${labelDetailTab === tab.key ? ' active' : ''}`;
+        btn.textContent = tab.label;
+        btn.addEventListener('click', () => {
+            if (labelDetailTab === tab.key) {
+                return;
+            }
+            labelDetailTab = tab.key;
+            renderLabelManagementDetail(label);
+        });
+        tabBar.appendChild(btn);
+    });
+    section.appendChild(tabBar);
+
+    const content = document.createElement('div');
+    content.className = 'label-mgmt-tab-content';
+    section.appendChild(content);
+
+    if (labelDetailTab === 'overview') {
+        content.appendChild(buildLabelDatesRow(label));
+        content.appendChild(buildLabelMemoField(label));
+        content.appendChild(buildLabelLinksSection(label));
+    } else {
+        content.appendChild(buildLabelTimelineSection(label));
+    }
+
+    return section;
 }
 
 /**
@@ -3152,6 +3214,106 @@ async function renderLabelLinksList(label, list) {
     } catch (error) {
         errorHandle(error, 'リンクの取得に失敗しました', 'renderLabelLinksList failed.');
     }
+}
+
+/**
+ * ラベル詳細の「タイムライン」欄を構築する。
+ * 見出しをクリックすると欄全体を折りたたむ／展開できる。
+ * このラベルが付いたTODOのメモを新しい順に並べて表示する。
+ *
+ * @param {data} label
+ * @returns {HTMLElement}
+ */
+function buildLabelTimelineSection(label) {
+    const section = document.createElement('div');
+    section.className = 'label-mgmt-timeline-section';
+
+    const collapsed = labelSectionCollapsed.timeline;
+    const header = document.createElement('div');
+    header.className = 'label-mgmt-section-header label-mgmt-section-header-toggle';
+    header.innerHTML = `<span>タイムライン</span><span class="group-arrow">${collapsed ? '▶' : '▼'}</span>`;
+    header.addEventListener('click', () => {
+        labelSectionCollapsed.timeline = !labelSectionCollapsed.timeline;
+        renderLabelManagementDetail(label);
+    });
+    section.appendChild(header);
+
+    if (collapsed) {
+        return section;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'label-mgmt-timeline-list';
+    section.appendChild(list);
+
+    renderLabelTimelineList(label, list);
+
+    return section;
+}
+
+/**
+ * ラベルのタイムライン（TODOメモの新しい順一覧）を取得してリストに描画する。
+ *
+ * @param {data} label
+ * @param {HTMLElement} list 表示先のコンテナ要素
+ * @returns {Promise<void>}
+ */
+async function renderLabelTimelineList(label, list) {
+    try {
+        const res = await apiFetch(`${TODO_LABELS_API}/${label.id}/timeline`);
+        const entries = await res.json();
+        if (entries.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'label-mgmt-empty';
+            empty.textContent = 'タイムラインがありません。';
+            list.appendChild(empty);
+            return;
+        }
+        entries.forEach(entry => list.appendChild(buildLabelTimelineRow(entry)));
+    } catch (error) {
+        errorHandle(error, 'タイムラインの取得に失敗しました', 'renderLabelTimelineList failed.');
+    }
+}
+
+/**
+ * タイムライン一覧の1行分の要素を構築する。
+ * クリックするとTODO画面へ移動して該当TODOを選択状態にする。
+ *
+ * @param {data} entry タイムライン項目（todo_id、todo_title、content、created_atを持つ）
+ * @returns {HTMLElement}
+ */
+function buildLabelTimelineRow(entry) {
+    const row = document.createElement('div');
+    row.className = 'label-mgmt-timeline-row';
+
+    const head = document.createElement('div');
+    head.className = 'label-mgmt-timeline-head';
+
+    const title = document.createElement('span');
+    title.className = 'label-mgmt-timeline-title';
+    title.textContent = entry.todo_title || '（無題）';
+    head.appendChild(title);
+
+    const date = document.createElement('span');
+    date.className = 'label-mgmt-timeline-date';
+    date.textContent = entry.created_at
+        ? fmtDate(entry.created_at) + ' ' + entry.created_at.slice(11, 16)
+        : '';
+    head.appendChild(date);
+
+    row.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'label-mgmt-timeline-body';
+    body.textContent = entry.content;
+    row.appendChild(body);
+
+    row.addEventListener('click', async () => {
+        await switchSection('todo');
+        selectTodo(entry.todo_id);
+    });
+
+    return row;
 }
 
 /**

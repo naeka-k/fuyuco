@@ -342,6 +342,25 @@ def delete_todo_memo(memo_id):
     return affected > 0
 
 
+def get_label_timeline(label_id):
+    '''ラベルのタイムラインを取得する関数。
+    label_idで指定されたラベルが付けられたTODOのメモを、
+    作成日時の降順（新しい順）で返す。
+    各要素にはメモの内容・作成日時に加え、紐づくTODOのidとtitleを含む。
+    '''
+    with get_todo_conn() as conn:
+        rows = conn.execute(
+            "SELECT m.id, m.todo_id, m.content, m.created_at, t.title AS todo_title "
+            "FROM todo_memos m "
+            "JOIN todo_label_links tl ON tl.todo_id = m.todo_id "
+            "JOIN todos t ON t.id = m.todo_id "
+            "WHERE tl.tag_id = ? "
+            "ORDER BY m.created_at DESC",
+            (label_id,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
 def update_todo_label(tag_id, name, color, closed, memo=""):
     '''TODOラベルを更新する関数。
     初めてクローズする場合のみclosed_atに現在日時を記録する。

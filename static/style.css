@@ -1613,8 +1613,8 @@ body {
 }
 .label-mgmt-name-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
 }
 .label-mgmt-empty {
@@ -1641,6 +1641,10 @@ body {
 }
 .label-mgmt-row:last-child { border-bottom: none; }
 .label-mgmt-dates {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 8px 4px 4px;
   font-size: .82rem;
   color: #888;
@@ -1660,12 +1664,48 @@ body {
 }
 .label-mgmt-section-header-toggle:hover { color: #2b6fd8; }
 .label-mgmt-section-header-toggle .group-arrow { font-size: .8rem; }
-.label-mgmt-memo-field {
+/* ── ラベル詳細下部タブ（概要／タイムライン） ── */
+.label-mgmt-tab-section {
   margin-top: 14px;
-  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.label-mgmt-tabbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.label-mgmt-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.label-mgmt-tab {
+  padding: 7px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: .9rem;
+  font-weight: bold;
+  color: #a8cffb;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color .15s, border-color .15s;
+}
+.label-mgmt-tab.active {
+  color: #3d82f0;
+  border-bottom-color: #3d82f0;
+}
+.label-mgmt-tab:hover:not(.active) { color: #3d82f0; }
+
+.label-mgmt-memo-field {
   padding-left: 4px;
   padding-right: 4px;
-  border-top: 1px solid #f0f0f0;
 }
 .label-mgmt-memo-view {
   height: 12.8em;
@@ -1775,6 +1815,63 @@ body {
   flex-shrink: 0;
 }
 .btn-icon:hover { background: #eef3fb; }
+
+/* ── ラベル詳細下部（タイムライン） ── */
+.label-mgmt-timeline-section {
+  padding-left: 4px;
+  padding-right: 4px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.label-mgmt-timeline-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label-mgmt-timeline-row {
+  padding: 8px 10px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.label-mgmt-timeline-row:hover {
+  border-color: #cfe0fb;
+  background: #f5f8ff;
+}
+.label-mgmt-timeline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.label-mgmt-timeline-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .78rem;
+  color: #999;
+}
+.label-mgmt-timeline-date {
+  flex-shrink: 0;
+  font-size: .78rem;
+  color: #888;
+}
+.label-mgmt-timeline-body {
+  font-size: .9rem;
+  color: #333;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .label-mgmt-name {
   flex: 1;

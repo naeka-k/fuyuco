@@ -29,6 +29,7 @@ from ..repository import (
     create_label_link,
     update_label_link,
     delete_label_link,
+    get_label_timeline,
 )
 
 router = APIRouter()
@@ -197,3 +198,12 @@ def update_label_link_endpoint(tag_id: int, link_id: int, body: LabelLinkUpdate)
 def delete_label_link_endpoint(tag_id: int, link_id: int):
     if not delete_label_link(link_id):
         raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.get("/api/todo-labels/{tag_id}/timeline")
+def list_label_timeline(tag_id: int):
+    '''
+    ラベルのタイムラインを取得するエンドポイント
+    tag_idで指定されたラベルが付けられたTODOのメモを、新しい順に並べて返す
+    '''
+    return get_label_timeline(tag_id)
