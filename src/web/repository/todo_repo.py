@@ -93,15 +93,19 @@ def get_all_todos(tag_id=None):
     '''
     TODOの一覧を取得する関数
     tag_idで指定されたタグが付けられたTODOの一覧を取得する
+    tag_idは単一のIDのほか、IDのリストも指定でき、その場合はいずれかのタグが付いたTODOを返す（OR条件）
     tag_idが指定されていない場合は全てのTODOの一覧を取得する
     取得されたTODOはdeadlineが近い順にソートされる。
     deadlineがNULLのTODOは最後にまとめて表示される
     '''
     with get_todo_conn() as conn:
         if tag_id is not None:
+            tag_ids = tag_id if isinstance(tag_id, (list, tuple)) else [tag_id]
+            placeholders = ','.join('?' * len(tag_ids))
             rows = conn.execute(
-                "SELECT t.* FROM todos t JOIN todo_label_links tl ON t.id = tl.todo_id WHERE tl.tag_id = ? ORDER BY t.deadline IS NULL, t.deadline, t.created_at",
-                (tag_id, )).fetchall()
+                f"SELECT DISTINCT t.* FROM todos t JOIN todo_label_links tl ON t.id = tl.todo_id "
+                f"WHERE tl.tag_id IN ({placeholders}) ORDER BY t.deadline IS NULL, t.deadline, t.created_at",
+                tag_ids).fetchall()
         else:
             rows = conn.execute(
                 "SELECT * FROM todos ORDER BY deadline IS NULL, deadline, created_at"

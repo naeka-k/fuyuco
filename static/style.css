@@ -153,6 +153,27 @@ body {
   flex-shrink: 0;
 }
 .tag-item.active .tag-dot { background: #3d82f0; }
+.tag-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow .12s;
+}
+.tag-check.checked {
+  box-shadow: 0 0 0 2px #3d82f0;
+}
+.tag-check.checked::after {
+  content: '✓';
+  color: #fff;
+  font-size: .62rem;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgba(0,0,0,.45);
+}
 .tag-item-name {
   flex: 1;
   overflow: hidden;
@@ -177,6 +198,18 @@ body {
   flex-shrink: 0;
 }
 .tag-del:hover { color: #f9a8a8; }
+.tag-goto-label {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #a8cffb;
+  font-size: .9rem;
+  font-weight: bold;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.tag-goto-label:hover { color: #3d82f0; }
 
 .tag-add-row {
   display: flex;

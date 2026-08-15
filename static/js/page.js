@@ -184,7 +184,8 @@ let isTagNavCollapsed = false;
 // ── TODO 状態 ──
 let allTodos = [];
 let allTodoLabels = [];
-let activeTodoTagId = null;
+// TODO/カンバンのラベル絞り込み（複数選択可、チェックリスト式）。空の場合はすべて表示する
+let selectedTodoTagIds = new Set();
 let selectedTodoId = null;
 let isNewMode = false;
 let sortAsc = true;
@@ -271,6 +272,7 @@ function switchSection(section) {
     $ge('note-section').style.display = section === 'note' ? '' : 'none';
     $ge('newTagColorBtn').style.background =
         isNote() ? noteSelectedColor : todoSelectedColor;
+    $ge('tagAddRow').style.display = (section === 'todo' || section === 'kanban') ? 'none' : '';
     let loaded;
     if (isNote()) {
         $ge('tag-nav-title').textContent = 'タグ';
@@ -390,7 +392,7 @@ async function openFromLocationHash() {
     const { section, todoId, noteId } = parseLocationHash();
     // タグ絞り込みで対象アイテムが一覧から除外されないよう、絞り込みを解除しておく
     if (todoId !== null) {
-        activeTodoTagId = null;
+        selectedTodoTagIds.clear();
     } else if (noteId !== null) {
         activeNoteTagId = null;
     }
@@ -599,92 +601,147 @@ function renderNoteTagNav() {
     ul.appendChild(archItem);
 
     // タグリストの画面反映
-    renderTagsList(tags, items, activeId, tagsApi, ul);
+    renderTagsList(tags, items, activeId, tagsApi, ul, false, null);
 
 }
 
 /**
- * TODOとカンバンのタグナビ
- * 
+ * TODOとカンバンのタグナビ。
+ * ラベルは複数選択可能なチェックリスト形式で表示する。
+ *
  */
 function renderTodoTagNav() {
     const tags = allTodoLabels.filter(t => !t.closed);
-    const activeId = activeTodoTagId;
     const items = isKanban() ? allTodos.filter(t => !t.recurrence) : allTodos;
     const tagsApi = TODO_LABELS_API;
     const ul = $ge('tagList');
     ul.innerHTML = '';
 
     const allItem = document.createElement('li');
-    allItem.className = `tag-item ${activeId === null ? 'active' : ''}`;
+    allItem.className = `tag-item ${selectedTodoTagIds.size === 0 ? 'active' : ''}`;
     allItem.innerHTML = `<span class="tag-dot"></span><span class="tag-item-name">すべて</span>`;
-    allItem.addEventListener('click', () => selectTag(null));
+    allItem.addEventListener('click', () => clearTodoTagFilter());
     ul.appendChild(allItem);
     // タグリストの画面反映
-    renderTagsList(tags, items, activeId, tagsApi, ul);
+    renderTagsList(tags, items, null, tagsApi, ul, true, selectedTodoTagIds);
 
 }
 
 /**
- * タグの内容をリストに反映
- * 
- * @param {data[]} tags 
- * @param {data[]} items 
- * @param {number} activeId 
- * @param {string} tagsApi 
- * @param {Element} ul 
+ * ラベル管理画面へ、指定したラベルを選択した状態で切り替える。
+ *
+ * @param {number} labelId
+ * @returns {Promise<void>}
  */
-function renderTagsList(tags, items, activeId, tagsApi, ul) {
+async function goToLabelManagement(labelId) {
+    activeLabelMgmtId = labelId;
+    saveActiveLabelMgmtId(labelId);
+    await switchSection('label');
+}
+
+/**
+ * TODOラベルの絞り込み選択をチェックリスト形式でトグルする（複数選択可）。
+ * 選択されたラベルのいずれかが付いたTODOのみを表示する。選択が空の場合はすべて表示する。
+ *
+ * @param {number} tagId
+ * @returns {Promise<void>}
+ */
+async function toggleTodoTagFilter(tagId) {
+    if (selectedTodoTagIds.has(tagId)) {
+        selectedTodoTagIds.delete(tagId);
+    } else {
+        selectedTodoTagIds.add(tagId);
+    }
+    await fetchTodos();
+    renderTagNav();
+}
+
+/**
+ * TODOラベルの絞り込みをすべて解除し、すべてのTODOを表示する。
+ *
+ * @returns {Promise<void>}
+ */
+async function clearTodoTagFilter() {
+    selectedTodoTagIds.clear();
+    await fetchTodos();
+    renderTagNav();
+}
+
+/**
+ * タグの内容をリストに反映。
+ * isTodoLabelContextがtrueの場合はTODOラベルの複数選択チェックリストとして描画する。
+ * 色見本とチェックボックスは1つの要素に統合し（色変更機能は持たない）、
+ * 行ごとにラベル管理画面への「＞」リンクを表示する（×削除ボタンは表示しない）。
+ * falseの場合（メモタグ）は単一選択のリストとして描画し、行ごとに色変更可能な色見本と×（削除）ボタンを表示する。
+ *
+ * @param {data[]} tags
+ * @param {data[]} items
+ * @param {number|string|null} activeId メモタグの選択中ID（isTodoLabelContextがfalseの場合のみ使用）
+ * @param {string} tagsApi
+ * @param {Element} ul
+ * @param {boolean} isTodoLabelContext TODOラベルの複数選択チェックリストとして描画するかどうか
+ * @param {Set<number>|null} selectedIds TODOラベルの選択中ID集合（isTodoLabelContextがtrueの場合のみ使用）
+ */
+function renderTagsList(tags, items, activeId, tagsApi, ul, isTodoLabelContext, selectedIds) {
     tags.forEach(tag => {
         const count = items.filter(item => !item.done).filter(item => item.tags.some(t => t.id === tag.id)).length;
+        const isChecked = isTodoLabelContext ? selectedIds.has(tag.id) : activeId === tag.id;
         const li = document.createElement('li');
-        li.className = `tag-item ${activeId === tag.id ? 'active' : ''}`;
+        li.className = `tag-item ${isChecked ? 'active' : ''}`;
 
         const dot = document.createElement('span');
-        dot.className = 'tag-color-btn';
         dot.style.background = tag.color;
-        dot.title = '色を変更';
-        dot.addEventListener('click', e => {
-            e.stopPropagation();
-            openSwatchPopup(dot, 5, TAG_PRESET_COLORS, tag.color, async (color) => {
-                await apiFetch(`${tagsApi}/${tag.id}/color`, {
-                    method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
-                    body: JSON.stringify({ color }),
-                });
-                if (!isNote()) {
-                    await fetchTodoLabels();
-                    fetchTodos(); 
-                } else {
+        if (isTodoLabelContext) {
+            // 色見本とチェックボックスを1つの要素に統合し、色変更機能は持たせない
+            dot.className = `tag-check${isChecked ? ' checked' : ''}`;
+        } else {
+            dot.className = 'tag-color-btn';
+            dot.title = '色を変更';
+            dot.addEventListener('click', e => {
+                e.stopPropagation();
+                openSwatchPopup(dot, 5, TAG_PRESET_COLORS, tag.color, async (color) => {
+                    await apiFetch(`${tagsApi}/${tag.id}/color`, {
+                        method: HTTP_METHOD_PATCH, headers: JSON_HEADER,
+                        body: JSON.stringify({ color }),
+                    });
                     await fetchNoteTags();
                     fetchNotes();
-                }
+                });
             });
-        });
-
+        }
         li.appendChild(dot);
+
+        const delBtnHtml = !isTodoLabelContext
+            ? `<button class="tag-del" onclick="event.stopPropagation(); deleteTag(${tag.id})">✕</button>`
+            : '';
+        const manageLinkHtml = isTodoLabelContext
+            ? `<button class="tag-goto-label" title="ラベル管理を開く" onclick="event.stopPropagation(); goToLabelManagement(${tag.id})">&gt;</button>`
+            : '';
         li.insertAdjacentHTML('beforeend', `
           <span class="tag-item-name" title="${escHtml(tag.name)}">${escHtml(truncTag(tag.name))}</span>
           <span class="tag-count">${count}</span>
-          <button class="tag-del" onclick="event.stopPropagation(); deleteTag(${tag.id})">✕</button>
+          ${delBtnHtml}
+          ${manageLinkHtml}
         `);
-        li.addEventListener('click', () => selectTag(tag.id));
+        li.addEventListener('click', () => {
+            if (isTodoLabelContext) {
+                toggleTodoTagFilter(tag.id);
+            } else {
+                selectTag(tag.id);
+            }
+        });
         ul.appendChild(li);
     });
 }
 
 /**
- * 引数で指定されたタグを選択状態にする
- * 
- * @param {*} tagId 
+ * 引数で指定されたメモタグを選択状態にする
+ *
+ * @param {number|string|null} tagId
  */
 async function selectTag(tagId) {
-    if (!isNote()) {
-        activeTodoTagId = tagId;
-        await fetchTodos();
-    } else {
-        activeNoteTagId = tagId;
-        await fetchNotes();
-    }
+    activeNoteTagId = tagId;
+    await fetchNotes();
     renderTagNav();
 }
 
@@ -769,9 +826,7 @@ async function deleteTodoTag(tagId) {
         return;
     }
     await apiFetch(`${tagsApi}/${tagId}`, { method: 'DELETE' });
-    if (activeTodoTagId === tagId){
-        activeTodoTagId = null;
-    }
+    selectedTodoTagIds.delete(tagId);
     await Promise.all([fetchTodoLabels(), fetchTodos()]);
 }
 
@@ -922,7 +977,9 @@ function getSidebarUrls() {
 // ── TODO CRUD ───────────────────────────────
 async function fetchTodos() {
     try {
-        const url = activeTodoTagId !== null ? `${TODO_API}?tag_id=${activeTodoTagId}` : TODO_API;
+        const url = selectedTodoTagIds.size > 0
+            ? `${TODO_API}?${[...selectedTodoTagIds].map(id => `tag_id=${id}`).join('&')}`
+            : TODO_API;
         const res = await apiFetch(url);
         allTodos = await res.json();
         render(allTodos);
@@ -1095,7 +1152,7 @@ function renderKanban() {
 
     const filtered = allTodos.filter(t =>
         !t.recurrence &&
-        (activeTodoTagId === null || t.tags.some(tg => tg.id === activeTodoTagId))
+        (selectedTodoTagIds.size === 0 || t.tags.some(tg => selectedTodoTagIds.has(tg.id)))
     );
     const cols = { todo: [], doing: [], done: [], waiting: [] };
     filtered.forEach(t => {

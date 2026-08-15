@@ -35,10 +35,11 @@ from ..repository import (
 router = APIRouter()
 
 @router.get("/api/todos")
-def list_todos(tag_id: int | None = Query(default=None)):
+def list_todos(tag_id: list[int] | None = Query(default=None)):
     '''
     TODOの一覧を取得するエンドポイント
     tag_idで指定されたタグが付けられたTODOの一覧を返す。
+    tag_idは`?tag_id=1&tag_id=2`のように複数指定でき、その場合はいずれかのタグが付いたTODOを返す（OR条件）
     tag_idが指定されていない場合は全てのTODOの一覧を返す
     '''
     return get_all_todos(tag_id)
