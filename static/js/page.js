@@ -166,7 +166,7 @@ const titleMap = {
 const iconMap = {
     todo: 'todo.png',
     kanban: 'kanban.png',
-    label: 'todo.png',
+    label: 'label.png',
     note: 'memo.png'
 };
 
