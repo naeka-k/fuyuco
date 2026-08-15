@@ -1611,15 +1611,6 @@ body {
   flex: 1;
   min-height: 0;
 }
-.label-mgmt-toolbar {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.label-mgmt-add-btn {
-  font-size: .95rem;
-  padding: 9px 20px;
-}
 .label-mgmt-name-actions {
   display: flex;
   flex-direction: column;
@@ -1654,11 +1645,30 @@ body {
   font-size: .82rem;
   color: #888;
 }
+.label-mgmt-section-header {
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #488de7;
+  margin-bottom: 8px;
+}
+.label-mgmt-section-header-toggle {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.label-mgmt-section-header-toggle:hover { color: #2b6fd8; }
+.label-mgmt-section-header-toggle .group-arrow { font-size: .8rem; }
 .label-mgmt-memo-field {
-  padding: 4px;
+  margin-top: 14px;
+  padding-top: 14px;
+  padding-left: 4px;
+  padding-right: 4px;
+  border-top: 1px solid #f0f0f0;
 }
 .label-mgmt-memo-view {
-  min-height: 90px;
+  height: 12.8em;
   padding: 10px 12px;
   border: 1px solid #eee;
   border-radius: 8px;
@@ -1668,8 +1678,10 @@ body {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-y: auto;
   cursor: text;
   transition: border-color .15s, background .15s;
+  box-sizing: border-box;
 }
 .label-mgmt-memo-view:hover {
   border-color: #cfe0fb;
@@ -1679,7 +1691,7 @@ body {
 .label-mgmt-memo-textarea {
   display: block;
   width: 100%;
-  min-height: 90px;
+  height: 12.8em;
   padding: 10px 12px;
   border: 1px solid #d5d5d5;
   border-radius: 8px;
@@ -1687,49 +1699,19 @@ body {
   font-family: inherit;
   color: #444;
   line-height: 1.6;
-  resize: vertical;
+  resize: none;
+  overflow-y: auto;
   box-sizing: border-box;
 }
 
-/* ── ラベル詳細下部タブ（概要／リンク／TODO） ── */
-.label-mgmt-tab-section {
+/* ── ラベル詳細下部（リンク） ── */
+.label-mgmt-links-section {
   margin-top: 14px;
   padding-top: 14px;
+  padding-left: 4px;
+  padding-right: 4px;
   border-top: 1px solid #f0f0f0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
 }
-.label-mgmt-tabbar {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 10px;
-  flex-shrink: 0;
-}
-.label-mgmt-tab-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-.label-mgmt-tab {
-  padding: 7px 18px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  font-size: .9rem;
-  font-weight: bold;
-  color: #a8cffb;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color .15s, border-color .15s;
-}
-.label-mgmt-tab.active {
-  color: #3d82f0;
-  border-bottom-color: #3d82f0;
-}
-.label-mgmt-tab:hover:not(.active) { color: #3d82f0; }
-
 .label-mgmt-link-add-btn {
   font-size: .85rem;
   padding: 7px 16px;
@@ -1793,37 +1775,6 @@ body {
   flex-shrink: 0;
 }
 .btn-icon:hover { background: #eef3fb; }
-
-.label-mgmt-todo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.label-mgmt-todo-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 4px;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-}
-.label-mgmt-todo-row:last-child { border-bottom: none; }
-.label-mgmt-todo-row:hover { background: #f7faff; }
-.label-mgmt-todo-row.done { opacity: .55; }
-.label-mgmt-todo-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: .9rem;
-  color: #444;
-}
-.label-mgmt-todo-deadline {
-  font-size: .82rem;
-  color: #888;
-  flex-shrink: 0;
-}
 
 .label-mgmt-name {
   flex: 1;
