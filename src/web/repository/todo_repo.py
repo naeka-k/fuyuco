@@ -367,7 +367,7 @@ def get_label_timeline(label_id):
 
 def update_todo_label(tag_id, name, color, closed, memo=""):
     '''TODOラベルを更新する関数。
-    初めてクローズする場合のみclosed_atに現在日時を記録する。
+    クローズする際は毎回closed_atに現在日時を記録する（再クローズ時も更新される）。
     '''
     with get_todo_conn() as conn:
         cur = conn.execute(
@@ -375,7 +375,7 @@ def update_todo_label(tag_id, name, color, closed, memo=""):
         ).fetchone()
         if cur is None:
             return None
-        if closed and not cur['closed'] and cur['closed_at'] is None:
+        if closed and not cur['closed']:
             conn.execute(
                 "UPDATE todo_labels SET name = ?, color = ?, closed = ?, memo = ?, closed_at = datetime('now', 'localtime') WHERE id = ?",
                 (name, color, closed, memo, tag_id)

@@ -2987,6 +2987,10 @@ async function renderLabelSection() {
     }
 }
 
+/**
+ * ラベル管理画面左サイドバーのラベル一覧を描画する。
+ * クローズ済みラベルは半透明表示にし、ラベル名に取り消し線を付ける。
+ */
 function renderLabelSectionNav() {
     const ul = $ge('tagList');
     ul.innerHTML = '';
@@ -3001,16 +3005,13 @@ function renderLabelSectionNav() {
         dot.style.background = label.color;
         const name = document.createElement('span');
         name.className = 'tag-item-name';
+        if (label.closed) {
+            name.style.textDecoration = 'line-through';
+        }
         name.title = label.name;
         name.textContent = truncTag(label.name);
         li.appendChild(dot);
         li.appendChild(name);
-        if (label.closed) {
-            const badge = document.createElement('span');
-            badge.className = 'tag-count';
-            badge.textContent = 'CL';
-            li.appendChild(badge);
-        }
         li.addEventListener('click', () => {
             activeLabelMgmtId = label.id;
             saveActiveLabelMgmtId(activeLabelMgmtId);

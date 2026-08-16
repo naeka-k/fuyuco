@@ -125,7 +125,7 @@ def delete_note(note_id):
 
 def update_note_tag(tag_id, name, color, closed):
     '''ノートタグを更新する関数。
-    初めてクローズする場合のみclosed_atに現在日時を記録する。
+    クローズする際は毎回closed_atに現在日時を記録する（再クローズ時も更新される）。
     '''
     with get_note_conn() as conn:
         cur = conn.execute(
@@ -133,7 +133,7 @@ def update_note_tag(tag_id, name, color, closed):
         ).fetchone()
         if cur is None:
             return None
-        if closed and not cur['closed'] and cur['closed_at'] is None:
+        if closed and not cur['closed']:
             conn.execute(
                 "UPDATE note_tags SET name = ?, color = ?, closed = ?, closed_at = datetime('now', 'localtime') WHERE id = ?",
                 (name, color, closed, tag_id)
