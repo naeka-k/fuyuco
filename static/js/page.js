@@ -1177,7 +1177,7 @@ function renderKanban() {
             const isToday = deadlineDatePart(t.deadline) === today && status !== 'done';
             const dlCls = isOverdue ? 'kanban-dl-overdue' : isToday ? 'kanban-dl-today' : 'kanban-dl-future';
             const tagPills = t.tags.map(tg =>
-                `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(truncTag(tg.name))}</span>`
+                `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}" onclick="event.stopPropagation(); goToLabelManagement(${tg.id})">${escHtml(truncTag(tg.name))}</span>`
             ).join('');
             const urlBtns = (t.urls || []).map(u =>
                 `<a class="btn-url" href="${escHtml(u)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escHtml(u)}">🔗</a>`
@@ -1262,7 +1262,7 @@ function render(todos) {
             ].filter(Boolean).join(' ');
 
             const tagPills = t.tags.map(tg =>
-                `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}">${escHtml(truncTag(tg.name))}</span>`
+                `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}" onclick="event.stopPropagation(); goToLabelManagement(${tg.id})">${escHtml(truncTag(tg.name))}</span>`
             ).join('');
 
             const recLabelMap = { daily: '毎日', weekly: '毎週', monthly: '毎月' };

@@ -463,6 +463,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   display: inline-block;
+  cursor: pointer;
+}
+.card-tag-pill:hover {
+  filter: brightness(0.92);
 }
 
 .btn-url {
