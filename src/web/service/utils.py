@@ -44,6 +44,7 @@ def attach_tags(conn, items, link_table, link_id_field, tag_table):
     connで指定されたデータベース接続を使用して、itemsで指定されたアイテムのリストにタグを付与する。
     link_tableで指定されたタグの関連テーブルと、link_id_fieldで指定されたアイテムIDのフィールド名、tag_tableで指定されたタグテーブルの名前を使用して、アイテムに関連するタグを取得し、アイテムに'tags'キーで付与して返す。
     itemsが空の場合は、そのまま返す。
+    タグはtag_table.idの昇順（作成順）で並べる。
     '''
     if not items:
         return items
@@ -52,7 +53,8 @@ def attach_tags(conn, items, link_table, link_id_field, tag_table):
     placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
         f"SELECT l.{link_id_field} AS item_id, t.id, t.name, t.color "
-        f"FROM {link_table} l JOIN {tag_table} t ON t.id = l.tag_id WHERE l.{link_id_field} IN ({placeholders})",
+        f"FROM {link_table} l JOIN {tag_table} t ON t.id = l.tag_id WHERE l.{link_id_field} IN ({placeholders}) "
+        f"ORDER BY t.id ASC",
         ids).fetchall()
 
     tag_map = {item["id"]: [] for item in items}

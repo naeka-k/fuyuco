@@ -147,10 +147,6 @@ const TEXT_COLORS = [
     '#3b82f6', '#8b5cf6', '#ec4899', '#555555', '#aaaaaa',
 ];
 
-const NOTE_COLORS = [
-    '#ffffff', '#ffd0d0', '#ffe5c8', '#fff9c4', '#d4f5d4',
-    '#ccf0ee', '#cce8ff', '#e8d5f5', '#ffd5e8', '#e8e8e8',
-];
 const TAG_PRESET_COLORS = [
     '#f47272', '#fb9a3a', '#fbd040', '#6ee7b0', '#5eead4',
     '#60a5fa', '#6366f1', '#a78bfa', '#f472b6', '#f87171',
@@ -1851,6 +1847,36 @@ function renderNotes() {
 }
 
 /**
+ * 色を白と混ぜて薄いパステル調にする。
+ * タグ色をそのままメモの背景に使うと文字が読みにくくなるため、
+ * 白を混ぜて薄めた色を作る。
+ *
+ * @param {string} hex - 元の色（#rrggbb形式）
+ * @param {number} whiteRatio - 白を混ぜる割合（0〜1）
+ * @returns {string} 薄めた色（rgb()形式）
+ */
+function lightenColor(hex, whiteRatio = 0.85) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    const mix = c => Math.round(255 * whiteRatio + c * (1 - whiteRatio));
+    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+/**
+ * メモの背景色を決定する。
+ * タグが設定されている場合は、その中で最もIDが小さい（＝最初に作られた）タグの色を
+ * 白で薄めたパステル調にして使う。タグが1つも設定されていない場合は白を返す。
+ *
+ * @param {Array} tags - メモに付与されたタグの配列
+ * @returns {string} 背景色（CSSカラー文字列）
+ */
+function getNoteBgColor(tags) {
+    return tags.length > 0 ? lightenColor(tags[0].color) : '#ffffff';
+}
+
+/**
  * メモを構築する。
  *
  * @param {data} note
@@ -1860,7 +1886,7 @@ function buildCard(note) {
     const card = document.createElement('div');
     card.className = 'note-card';
     card.dataset.id = note.id;
-    card.style.background = note.color;
+    card.style.background = getNoteBgColor(note.tags);
 
     // ── ヘッダー（タイトル＋右上アクションボタン）──
     const headerEl = document.createElement('div');
@@ -1875,19 +1901,6 @@ function buildCard(note) {
 
     const actionsEl = document.createElement('div');
     actionsEl.className = 'note-card-actions';
-
-    const colorBtn = document.createElement('button');
-    colorBtn.className = 'note-btn';
-    colorBtn.title = '色を変更';
-    colorBtn.textContent = '🎨';
-    colorBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        openSwatchPopup(colorBtn, 5, NOTE_COLORS, note.color, async color => {
-            note.color = color;
-            card.style.background = color;
-            scheduleNoteSave(note.id);
-        });
-    });
 
     const tagBtn = document.createElement('button');
     tagBtn.className = 'note-btn';
@@ -1973,7 +1986,6 @@ function buildCard(note) {
         setTimeout(() => document.addEventListener('click', outsideHandler), 0);
     });
 
-    actionsEl.appendChild(colorBtn);
     actionsEl.appendChild(linkBtn);
     actionsEl.appendChild(editToggleBtn);
     actionsEl.appendChild(archBtn);
@@ -2230,10 +2242,13 @@ function getNoteCardData(noteId) {
     const tagIds = activePopup
         ? [...activePopup.querySelectorAll('input[type=checkbox]:checked')].map(cb => +cb.value)
         : note?.tags.map(t => t.id) ?? [];
+    const selectedTags = allNoteTags
+        .filter(t => tagIds.includes(t.id))
+        .sort((a, b) => a.id - b.id);
     return {
         title: card.querySelector('.note-title').innerText.trim(),
         body: card.querySelector('.note-body').innerHTML,
-        color: card.style.background || note?.color || '#ffffff',
+        color: getNoteBgColor(selectedTags),
         tag_ids: tagIds,
     };
 }
@@ -2269,6 +2284,10 @@ async function flushNoteSave(noteId) {
         const tagsEl = $ge(`tags-${noteId}`);
         if (tagsEl) {
             renderNoteTags(tagsEl, updated.tags);
+        }
+        const card = $qs(`.note-card[data-id="${noteId}"]`);
+        if (card) {
+            card.style.background = getNoteBgColor(updated.tags);
         }
     }
     renderTagNav();
