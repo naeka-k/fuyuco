@@ -927,6 +927,73 @@ function openSidebarTagPopup() {
     }, 0);
 }
 
+/**
+ * TODOのメモ／ステータス変更履歴CSVエクスポート用のポップアップを開く。
+ * 開始日・終了日を指定してダウンロードボタンを押すと、エクスポートAPIへ
+ * 遷移してCSVファイルをダウンロードする
+ */
+function openExportPopup() {
+    const anchorEl = $ge('export-btn');
+    if (activePopup) {
+        activePopup.remove();
+        activePopup = null;
+    }
+    const today = nowJST().slice(0, 10);
+    const popup = document.createElement('div');
+    popup.className = 'tag-popup export-popup';
+
+    const fromInput = document.createElement('input');
+    fromInput.type = 'date';
+    fromInput.value = today;
+    const fromLabel = document.createElement('label');
+    fromLabel.className = 'export-popup-row';
+    fromLabel.textContent = '開始日';
+    fromLabel.appendChild(fromInput);
+
+    const toInput = document.createElement('input');
+    toInput.type = 'date';
+    toInput.value = today;
+    const toLabel = document.createElement('label');
+    toLabel.className = 'export-popup-row';
+    toLabel.textContent = '終了日';
+    toLabel.appendChild(toInput);
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.className = 'btn-export-download';
+    downloadBtn.textContent = 'CSVダウンロード';
+    downloadBtn.addEventListener('click', () => {
+        const params = new URLSearchParams();
+        if (fromInput.value) {
+            params.set('date_from', fromInput.value);
+        }
+        if (toInput.value) {
+            params.set('date_to', toInput.value);
+        }
+        window.location.href = `${TODO_API}/export?${params.toString()}`;
+        popup.remove();
+        activePopup = null;
+    });
+
+    popup.appendChild(fromLabel);
+    popup.appendChild(toLabel);
+    popup.appendChild(downloadBtn);
+    document.body.appendChild(popup);
+    activePopup = popup;
+    const rect = anchorEl.getBoundingClientRect();
+    popup.style.left = `${rect.left}px`;
+    popup.style.top = `${rect.bottom + 4}px`;
+    setTimeout(() => {
+        document.addEventListener('click', function h(e) {
+            if (!popup.contains(e.target) && e.target !== anchorEl) {
+                popup.remove();
+                activePopup = null;
+                document.removeEventListener('click', h);
+            }
+        });
+    }, 0);
+}
+
 function getSidebarCheckedTagIds() {
     return [...sidebarTagIds];
 }

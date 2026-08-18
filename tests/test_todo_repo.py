@@ -1,5 +1,6 @@
 import pytest
 
+from web.repository.db_conn import get_todo_conn
 from web.repository.todo_repo import (
     create_label_link,
     create_todo,
@@ -12,6 +13,7 @@ from web.repository.todo_repo import (
     get_all_todo_labels,
     get_all_todos,
     get_label_links,
+    get_todo_memo_log,
     get_todo_memos,
     set_todo_status,
     toggle_todo,
@@ -248,6 +250,51 @@ class TestTodoMemos:
         memos = get_todo_memos(todo["id"])
         assert len(memos) == 2
         assert {m["content"] for m in memos} == {"First", "Second"}
+
+
+class TestTodoMemoLog:
+    def _set_memo_created_at(self, memo_id, created_at):
+        with get_todo_conn() as conn:
+            conn.execute(
+                "UPDATE todo_memos SET created_at = ? WHERE id = ?",
+                (created_at, memo_id)
+            )
+
+    def test_entry_includes_todo_and_label_info(self, db):
+        label = create_todo_label("Work", "#ff0000")
+        todo = create_todo("Task", None)
+        update_todo(todo["id"], "Task", None, None, [], [label["id"]], None)
+        create_todo_memo(todo["id"], "Did something")
+
+        entries = get_todo_memo_log()
+        assert len(entries) == 1
+        assert entries[0]["content"] == "Did something"
+        assert entries[0]["todo_title"] == "Task"
+        assert entries[0]["labels"] == ["Work"]
+        assert entries[0]["todo_status_label"] == "未着手"
+
+    def test_no_entries_returns_empty_list(self, db):
+        assert get_todo_memo_log() == []
+
+    def test_filters_by_date_range(self, db):
+        todo = create_todo("Task", None)
+        old_memo = create_todo_memo(todo["id"], "Old entry")
+        new_memo = create_todo_memo(todo["id"], "New entry")
+        self._set_memo_created_at(old_memo["id"], "2023-01-01 09:00:00")
+        self._set_memo_created_at(new_memo["id"], "2023-06-01 09:00:00")
+
+        entries = get_todo_memo_log(date_from="2023-05-01", date_to="2023-06-30")
+        assert [e["content"] for e in entries] == ["New entry"]
+
+    def test_entries_ordered_by_created_at_ascending(self, db):
+        todo = create_todo("Task", None)
+        first = create_todo_memo(todo["id"], "First")
+        second = create_todo_memo(todo["id"], "Second")
+        self._set_memo_created_at(first["id"], "2023-01-01 09:00:00")
+        self._set_memo_created_at(second["id"], "2023-01-02 09:00:00")
+
+        entries = get_todo_memo_log()
+        assert [e["content"] for e in entries] == ["First", "Second"]
 
 
 class TestTodoLabels:

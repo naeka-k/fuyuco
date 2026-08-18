@@ -363,6 +363,52 @@ def delete_todo_memo(memo_id):
     return affected > 0
 
 
+def get_todo_memo_log(date_from=None, date_to=None):
+    '''
+    TODOのメモ／ステータス変更履歴を、期間を指定して取得する関数
+    date_from、date_toは'YYYY-MM-DD'形式の日付文字列で、指定した場合は
+    created_atがその範囲内（両端の日を含む）のメモのみを対象とする。
+    いずれも指定しない場合は全期間を対象とする
+    結果は作成日時の昇順で返し、各要素にはメモの内容・作成日時に加え、
+    紐づくTODOのタイトル・現在のステータス（表示ラベル）・付与されているラベル名の一覧を含む
+    '''
+    with get_todo_conn() as conn:
+        query = (
+            "SELECT m.content, m.created_at, t.id AS todo_id, t.title AS todo_title, "
+            "t.status AS todo_status FROM todo_memos m JOIN todos t ON t.id = m.todo_id"
+        )
+        conditions = []
+        params = []
+        if date_from:
+            conditions.append("m.created_at >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("m.created_at <= ?")
+            params.append(date_to + " 23:59:59")
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY m.created_at ASC"
+        entries = [dict(row) for row in conn.execute(query, params).fetchall()]
+
+        todo_ids = sorted({e["todo_id"] for e in entries})
+        labels_by_todo = {}
+        if todo_ids:
+            placeholders = ",".join("?" * len(todo_ids))
+            label_rows = conn.execute(
+                f"SELECT tl.todo_id, tg.name FROM todo_label_links tl "
+                f"JOIN todo_labels tg ON tg.id = tl.tag_id "
+                f"WHERE tl.todo_id IN ({placeholders})",
+                todo_ids
+            ).fetchall()
+            for row in label_rows:
+                labels_by_todo.setdefault(row["todo_id"], []).append(row["name"])
+
+        for e in entries:
+            e["labels"] = labels_by_todo.get(e["todo_id"], [])
+            e["todo_status_label"] = STATUS_LABELS.get(e["todo_status"], e["todo_status"])
+        return entries
+
+
 def get_label_timeline(label_id):
     '''ラベルのタイムラインを取得する関数。
     label_idで指定されたラベルが付けられたTODOのメモを、

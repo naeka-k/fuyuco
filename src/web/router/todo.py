@@ -3,7 +3,10 @@ TODO関連のAPIエンドポイントを定義するモジュール
 このモジュールでは、TODOの作成、更新、削除、状態変更、タグの管理など、TODOに関連するAPIエンドポイントを定義している。
 各エンドポイントは、対応するリポジトリ関数を呼び出してデータベース操作を行い、適切なHTTPレスポンスを返す
 '''
+import csv
+import io
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from ..schemas import (
     TodoCreate, TodoUpdate, StatusUpdate, TagCreate, TagColorUpdate, TagUpdate,
     TodoMemoCreate, TodoMemoUpdate, LabelLinkCreate, LabelLinkUpdate,
@@ -22,6 +25,7 @@ from ..repository import (
     update_todo_label_color,
     delete_todo_label,
     get_todo_memos,
+    get_todo_memo_log,
     create_todo_memo,
     update_todo_memo,
     delete_todo_memo,
@@ -208,3 +212,31 @@ def list_label_timeline(tag_id: int):
     tag_idで指定されたラベルが付けられたTODOのメモを、新しい順に並べて返す
     '''
     return get_label_timeline(tag_id)
+
+
+@router.get("/api/todos/export")
+def export_todo_log_csv(date_from: str | None = Query(default=None), date_to: str | None = Query(default=None)):
+    '''
+    TODOのメモ／ステータス変更履歴をCSVファイルとしてエクスポートするエンドポイント
+    date_from、date_toで期間（'YYYY-MM-DD'、両端の日を含む）を絞り込める。
+    指定がなければ全期間を対象とする。
+    日報などのAIによる要約作成向けに、日時・TODOタイトル・ラベル・ステータス・内容を列とするCSVを返す
+    '''
+    entries = get_todo_memo_log(date_from, date_to)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["日時", "TODOタイトル", "ラベル", "ステータス", "内容"])
+    for e in entries:
+        writer.writerow([
+            e["created_at"],
+            e["todo_title"],
+            "、".join(e["labels"]),
+            e["todo_status_label"],
+            e["content"],
+        ])
+    csv_bytes = ("﻿" + buf.getvalue()).encode("utf-8")
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="fuyuco_log.csv"'},
+    )

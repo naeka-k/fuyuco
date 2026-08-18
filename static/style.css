@@ -338,6 +338,7 @@ body {
 .toolbar {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-bottom: 8px;
   flex-shrink: 0;
 }
@@ -1258,6 +1259,30 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 12em;
+}
+.export-popup {
+  min-width: 200px;
+}
+.export-popup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .88rem;
+  color: #444;
+}
+.btn-export-download {
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: #3d82f0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.btn-export-download:hover {
+  background: #2370e8;
 }
 
 /* ── カンバン ── */
