@@ -1705,29 +1705,40 @@ async function toggleSelected() {
 
 /**
  * 選択したTODOのステータス変更。
- * @param {number} status 
- * @returns 
+ * ステータス変更時に自動追加されるコメントは、更新後のメモ一覧の先頭に
+ * 展開表示されるため、続けて自由にコメントを追記できるようフォーカスする。
+ * @param {number} status
+ * @returns
  */
 async function setStatusSelected(status) {
     if (selectedTodoId === null) {
         return;
     }
-    await setStatusById(selectedTodoId, status);
+    const todoId = selectedTodoId;
+    await setStatusById(todoId, status);
+    await loadTodoMemos(todoId);
+    const firstTa = $ge('sb-memo-list').querySelector('textarea');
+    if (firstTa) {
+        firstTa.focus();
+    }
 }
 
 /**
  * TODOのステータス変更。
- * 
- * @param {number} id 
- * @param {number} status 
+ * ステータスが実際に変化した場合、変更内容を記録した自動コメントが
+ * メモ履歴に追加される。commentを指定するとその内容が自動コメントに追記される
+ *
+ * @param {number} id
+ * @param {number} status
+ * @param {string} [comment] 自動コメントに追記する任意のコメント
  */
-async function setStatusById(id, status) {
+async function setStatusById(id, status, comment) {
     await apiFetch(`${TODO_API}/${id}/status`, {
         method: HTTP_METHOD_PATCH,
         headers: JSON_HEADER,
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(comment ? { status, comment } : { status }),
     });
-    fetchTodos();
+    await fetchTodos();
 }
 
 /**

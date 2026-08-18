@@ -9,6 +9,13 @@ from ..service.recurrence import calc_next_deadline, parse_rec
 from ..service.utils import attach_tags, parse_urls, urls_to_json
 from datetime import date
 
+STATUS_LABELS = {
+    'todo': '未着手',
+    'doing': '実施中',
+    'done': '完了',
+    'waiting': '待機中',
+}
+
 def generate_recurring_todos():
     '''定期TODOを生成する関数
     定期TODOのルールに従って、必要なTODOを生成する。
@@ -189,11 +196,13 @@ def toggle_todo(todo_id):
         return _attach_todo_labels(conn, [dict(row)])[0]
 
 
-def set_todo_status(todo_id, status):
+def set_todo_status(todo_id, status, comment=None):
     '''
     TODOの状態を設定する関数
     todo_idで指定されたTODOの状態をstatusで設定する。
-    statusは'todo'、'doing'、'done'のいずれかでなければならない
+    statusは'todo'、'doing'、'done'、'waiting'のいずれかでなければならない
+    状態が実際に変化した場合、「(「旧」→「新」)」形式の自動コメントをメモ履歴に追加する。
+    commentが指定された場合はその内容を自動コメントに追記する
     設定に成功した場合は更新されたTODOを返し、TODOが見つからない場合はNoneを返す
     '''
     if status not in ['todo', 'doing', 'done', 'waiting']:
@@ -204,7 +213,15 @@ def set_todo_status(todo_id, status):
         if row is None:
             return None
         todo = dict(row)
+        old_status = todo.get("status") or ('done' if todo["done"] else 'todo')
         _apply_status(conn, todo_id, todo, status)
+        if old_status != status:
+            content = f"(「{STATUS_LABELS.get(old_status, old_status)}」→「{STATUS_LABELS.get(status, status)}」)"
+            if comment:
+                content += f"\n{comment}"
+            conn.execute(
+                "INSERT INTO todo_memos (todo_id, content) VALUES (?, ?)",
+                (todo_id, content))
         row = conn.execute("SELECT * FROM todos WHERE id = ?",
                            (todo_id, )).fetchone()
         return _attach_todo_labels(conn, [dict(row)])[0]

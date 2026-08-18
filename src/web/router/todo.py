@@ -90,7 +90,7 @@ def set_todo_status_endpoint(todo_id: int, body: StatusUpdate):
     '''
     if body.status not in ('todo', 'doing', 'done', 'waiting'):
         raise HTTPException(status_code=400, detail="Invalid status")
-    todo = set_todo_status(todo_id, body.status)
+    todo = set_todo_status(todo_id, body.status, body.comment)
     if todo is None:
         raise HTTPException(status_code=404, detail="Not found")
     return todo

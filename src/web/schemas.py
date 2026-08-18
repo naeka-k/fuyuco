@@ -62,8 +62,10 @@ class StatusUpdate(BaseModel):
     '''
     TODOの状態を更新するためのモデル
     statusフィールドは 'todo'、'doing'、'done'、'waiting'のいずれかを定義する
+    commentはオプションで、状態変更時に自動追加されるコメントに追記する内容を定義する
     '''
     status: str
+    comment: str | None = None
 
 class TagCreate(BaseModel):
     '''

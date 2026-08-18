@@ -127,6 +127,26 @@ class TestSetTodoStatus:
         set_todo_status(todo["id"], "done")
         assert len(get_all_todos()) == 1
 
+    def test_status_change_adds_auto_comment(self, db):
+        todo = create_todo("Task", "2023-06-01T00:00:00")
+        set_todo_status(todo["id"], "doing")
+        memos = get_todo_memos(todo["id"])
+        assert len(memos) == 1
+        assert memos[0]["content"] == "(「未着手」→「実施中」)"
+
+    def test_status_change_with_comment_appends_comment(self, db):
+        todo = create_todo("Task", "2023-06-01T00:00:00")
+        set_todo_status(todo["id"], "doing", "念のため確認中")
+        memos = get_todo_memos(todo["id"])
+        assert memos[0]["content"] == (
+            "(「未着手」→「実施中」)\n念のため確認中"
+        )
+
+    def test_no_status_change_does_not_add_comment(self, db):
+        todo = create_todo("Task", "2023-06-01T00:00:00")
+        set_todo_status(todo["id"], "todo")
+        assert get_todo_memos(todo["id"]) == []
+
 
 class TestDeleteTodo:
     def test_delete_existing_returns_true(self, db):
