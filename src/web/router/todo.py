@@ -235,9 +235,12 @@ def export_todo_log_csv(date_from: str | None = Query(default=None), date_to: st
             e["content"],
         ])
     csv_bytes = ("﻿" + buf.getvalue()).encode("utf-8")
-    from_part = date_from.replace('-', '') if date_from else 'all'
-    to_part = date_to.replace('-', '') if date_to else 'all'
-    filename = f"todo_{from_part}_{to_part}.csv"
+    if date_from and date_from == date_to:
+        filename = f"todo_{date_from.replace('-', '')}.csv"
+    else:
+        from_part = date_from.replace('-', '') if date_from else 'all'
+        to_part = date_to.replace('-', '') if date_to else 'all'
+        filename = f"todo_{from_part}_{to_part}.csv"
     return Response(
         content=csv_bytes,
         media_type="text/csv",
