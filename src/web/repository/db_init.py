@@ -126,6 +126,7 @@ def init_db():
                 created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
             )
         """)
+        ensure_column(conn, "todo_memos", "status", "TEXT")
         rows = conn.execute(
             "SELECT id, memo FROM todos WHERE memo IS NOT NULL AND memo != ''"
         ).fetchall()
@@ -138,6 +139,17 @@ def init_db():
                     "INSERT INTO todo_memos (todo_id, content) VALUES (?, ?)",
                     (row["id"], row["memo"])
                 )
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS todo_status_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                todo_id INTEGER NOT NULL,
+                old_status TEXT NOT NULL,
+                new_status TEXT NOT NULL,
+                comment TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+            )
+        """)
 
     with get_note_conn() as conn:
         conn.execute("""

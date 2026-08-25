@@ -129,25 +129,37 @@ class TestSetTodoStatus:
         set_todo_status(todo["id"], "done")
         assert len(get_all_todos()) == 1
 
-    def test_status_change_adds_auto_comment(self, db):
+    def _get_status_log(self, todo_id):
+        with get_todo_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM todo_status_log WHERE todo_id = ?", (todo_id,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def test_status_change_is_logged(self, db):
         todo = create_todo("Task", "2023-06-01T00:00:00")
         set_todo_status(todo["id"], "doing")
-        memos = get_todo_memos(todo["id"])
-        assert len(memos) == 1
-        assert memos[0]["content"] == "(「未着手」→「実施中」)"
+        rows = self._get_status_log(todo["id"])
+        assert len(rows) == 1
+        assert rows[0]["old_status"] == "todo"
+        assert rows[0]["new_status"] == "doing"
+        assert rows[0]["comment"] is None
 
-    def test_status_change_with_comment_appends_comment(self, db):
+    def test_status_change_with_comment_is_logged(self, db):
         todo = create_todo("Task", "2023-06-01T00:00:00")
         set_todo_status(todo["id"], "doing", "念のため確認中")
-        memos = get_todo_memos(todo["id"])
-        assert memos[0]["content"] == (
-            "(「未着手」→「実施中」)\n念のため確認中"
-        )
+        rows = self._get_status_log(todo["id"])
+        assert rows[0]["comment"] == "念のため確認中"
 
-    def test_no_status_change_does_not_add_comment(self, db):
+    def test_status_change_does_not_create_memo(self, db):
+        todo = create_todo("Task", "2023-06-01T00:00:00")
+        set_todo_status(todo["id"], "doing")
+        assert get_todo_memos(todo["id"]) == []
+
+    def test_no_status_change_does_not_log(self, db):
         todo = create_todo("Task", "2023-06-01T00:00:00")
         set_todo_status(todo["id"], "todo")
-        assert get_todo_memos(todo["id"]) == []
+        assert self._get_status_log(todo["id"]) == []
 
 
 class TestDeleteTodo:
@@ -220,6 +232,18 @@ class TestTodoMemos:
         memos = get_todo_memos(todo["id"])
         assert len(memos) == 1
         assert memos[0]["content"] == "Memo content"
+
+    def test_memo_captures_status_at_creation_time(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing")
+        memo = create_todo_memo(todo["id"], "In progress note")
+        assert memo["status"] == "doing"
+
+        set_todo_status(todo["id"], "done")
+        later_memo = create_todo_memo(todo["id"], "Done note")
+        assert later_memo["status"] == "done"
+        memos_by_content = {m["content"]: m for m in get_todo_memos(todo["id"])}
+        assert memos_by_content["In progress note"]["status"] == "doing"
 
     def test_no_memos_returns_empty_list(self, db):
         todo = create_todo("Task", None)
@@ -295,6 +319,82 @@ class TestTodoMemoLog:
 
         entries = get_todo_memo_log()
         assert [e["content"] for e in entries] == ["First", "Second"]
+
+    def _set_status_log_created_at(self, todo_id, created_at):
+        with get_todo_conn() as conn:
+            conn.execute(
+                "UPDATE todo_status_log SET created_at = ? WHERE todo_id = ?",
+                (created_at, todo_id)
+            )
+
+    def test_status_change_entry_is_included(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing")
+
+        entries = get_todo_memo_log()
+        assert len(entries) == 1
+        assert entries[0]["content"] == "(「未着手」→「実施中」)"
+        assert entries[0]["todo_title"] == "Task"
+
+    def test_status_change_comment_is_appended_to_content(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing", "念のため確認中")
+
+        entries = get_todo_memo_log()
+        assert entries[0]["content"] == "(「未着手」→「実施中」)\n念のため確認中"
+
+    def test_memos_and_status_changes_are_merged_by_date(self, db):
+        todo = create_todo("Task", None)
+        memo = create_todo_memo(todo["id"], "手動メモ")
+        self._set_memo_created_at(memo["id"], "2023-01-01 09:00:00")
+        set_todo_status(todo["id"], "doing")
+        self._set_status_log_created_at(todo["id"], "2023-01-02 09:00:00")
+
+        entries = get_todo_memo_log()
+        assert [e["content"] for e in entries] == [
+            "手動メモ", "(「未着手」→「実施中」)"
+        ]
+
+    def test_status_changes_are_filtered_by_date_range(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing")
+        self._set_status_log_created_at(todo["id"], "2023-01-01 09:00:00")
+
+        entries = get_todo_memo_log(date_from="2023-02-01", date_to="2023-02-28")
+        assert entries == []
+
+    def test_entries_for_deleted_todo_are_skipped(self, db):
+        todo = create_todo("Task", None)
+        create_todo_memo(todo["id"], "手動メモ")
+        set_todo_status(todo["id"], "doing")
+        delete_todo(todo["id"])
+
+        assert get_todo_memo_log() == []
+
+    def test_memo_status_reflects_time_of_writing_not_current_status(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing")
+        create_todo_memo(todo["id"], "作業中メモ")
+        set_todo_status(todo["id"], "done")
+
+        entries = get_todo_memo_log()
+        memo_entry = next(e for e in entries if e["content"] == "作業中メモ")
+        assert memo_entry["todo_status_label"] == "実施中"
+
+    def test_legacy_memo_without_status_falls_back_to_status_log(self, db):
+        todo = create_todo("Task", None)
+        memo = create_todo_memo(todo["id"], "古いメモ")
+        with get_todo_conn() as conn:
+            conn.execute(
+                "UPDATE todo_memos SET status = NULL, created_at = ? WHERE id = ?",
+                ("2023-01-02 09:00:00", memo["id"])
+            )
+        set_todo_status(todo["id"], "doing")
+        self._set_status_log_created_at(todo["id"], "2023-01-01 09:00:00")
+
+        entries = get_todo_memo_log()
+        memo_entry = next(e for e in entries if e["content"] == "古いメモ")
+        assert memo_entry["todo_status_label"] == "実施中"
 
 
 class TestTodoLabels:
