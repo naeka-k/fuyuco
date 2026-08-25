@@ -428,12 +428,16 @@ def get_todo_memo_log(date_from=None, date_to=None):
             for row in label_rows:
                 labels_by_todo.setdefault(row["todo_id"], []).append(row["name"])
 
+        result = []
         for e in entries:
-            todo = todos_by_id[e["todo_id"]]
+            todo = todos_by_id.get(e["todo_id"])
+            if todo is None:
+                continue
             e["todo_title"] = todo["title"]
             e["labels"] = labels_by_todo.get(e["todo_id"], [])
             e["todo_status_label"] = STATUS_LABELS.get(todo["status"], todo["status"])
-        return entries
+            result.append(e)
+        return result
 
 
 def get_label_timeline(label_id):

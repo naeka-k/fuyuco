@@ -351,6 +351,14 @@ class TestTodoMemoLog:
         entries = get_todo_memo_log(date_from="2023-02-01", date_to="2023-02-28")
         assert entries == []
 
+    def test_entries_for_deleted_todo_are_skipped(self, db):
+        todo = create_todo("Task", None)
+        create_todo_memo(todo["id"], "手動メモ")
+        set_todo_status(todo["id"], "doing")
+        delete_todo(todo["id"])
+
+        assert get_todo_memo_log() == []
+
 
 class TestTodoLabels:
     def test_create_label(self, db):
