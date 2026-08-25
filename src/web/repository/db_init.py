@@ -139,6 +139,17 @@ def init_db():
                     (row["id"], row["memo"])
                 )
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS todo_status_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                todo_id INTEGER NOT NULL,
+                old_status TEXT NOT NULL,
+                new_status TEXT NOT NULL,
+                comment TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+            )
+        """)
+
     with get_note_conn() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS notes (
