@@ -316,13 +316,18 @@ def get_todo_memos(todo_id):
 def create_todo_memo(todo_id, content):
     '''
     TODOのメモを新規追加する関数
+    作成時点でのTODOのステータスをあわせて記録する。
     作成に成功した場合はその内容を返す
     '''
 
     with get_todo_conn() as conn:
+        todo = conn.execute(
+            "SELECT status, done FROM todos WHERE id = ?", (todo_id,)
+        ).fetchone()
+        status = (todo["status"] or ('done' if todo["done"] else 'todo')) if todo else None
         cur = conn.execute(
-            "INSERT INTO todo_memos (todo_id, content) VALUES (?, ?)",
-            (todo_id, content)
+            "INSERT INTO todo_memos (todo_id, content, status) VALUES (?, ?, ?)",
+            (todo_id, content, status)
         )
         row = conn.execute(
             "SELECT * FROM todo_memos WHERE id = ?", (cur.lastrowid,)
@@ -369,7 +374,12 @@ def get_todo_memo_log(date_from=None, date_to=None):
     todo_memosの内容とtodo_status_logのステータス変更記録（「(「旧」→「新」)」形式、
     commentがあれば追記）を統合し、作成日時の昇順で返す。
     各要素にはcontent（メモまたは変更内容）・作成日時に加え、紐づくTODOのタイトル・
-    現在のステータス（表示ラベル）・付与されているラベル名の一覧を含む
+    そのエントリが記録された時点でのステータス（表示ラベル）・
+    付与されているラベル名の一覧を含む。
+    ステータスは、todo_memosにはメモ作成時点のものがstatus列にそのまま記録されているため
+    それを使う。記録がない古いメモ（status列がNULL）については、そのTODOの
+    todo_status_log全履歴のうち、エントリの作成日時以前で最も新しい変更を反映したもので
+    代用する（履歴がなければ初期状態の'todo'）
     '''
     with get_todo_conn() as conn:
         conditions = []
@@ -383,7 +393,7 @@ def get_todo_memo_log(date_from=None, date_to=None):
         where_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
 
         memo_rows = conn.execute(
-            "SELECT content, created_at, todo_id FROM todo_memos" + where_clause,
+            "SELECT content, created_at, todo_id, status FROM todo_memos" + where_clause,
             params
         ).fetchall()
         status_rows = conn.execute(
@@ -397,6 +407,7 @@ def get_todo_memo_log(date_from=None, date_to=None):
                 "content": row["content"],
                 "created_at": row["created_at"],
                 "todo_id": row["todo_id"],
+                "status_at_time": row["status"],
             })
         for row in status_rows:
             content = f"(「{STATUS_LABELS.get(row['old_status'], row['old_status'])}」→「{STATUS_LABELS.get(row['new_status'], row['new_status'])}」)"
@@ -406,16 +417,18 @@ def get_todo_memo_log(date_from=None, date_to=None):
                 "content": content,
                 "created_at": row["created_at"],
                 "todo_id": row["todo_id"],
+                "status_at_time": row["new_status"],
             })
         entries.sort(key=lambda e: e["created_at"])
 
         todo_ids = sorted({e["todo_id"] for e in entries})
         todos_by_id = {}
         labels_by_todo = {}
+        timelines_by_todo = {}
         if todo_ids:
             placeholders = ",".join("?" * len(todo_ids))
             todo_rows = conn.execute(
-                f"SELECT id, title, status FROM todos WHERE id IN ({placeholders})",
+                f"SELECT id, title FROM todos WHERE id IN ({placeholders})",
                 todo_ids
             ).fetchall()
             todos_by_id = {row["id"]: row for row in todo_rows}
@@ -427,15 +440,36 @@ def get_todo_memo_log(date_from=None, date_to=None):
             ).fetchall()
             for row in label_rows:
                 labels_by_todo.setdefault(row["todo_id"], []).append(row["name"])
+            timeline_rows = conn.execute(
+                f"SELECT todo_id, new_status, created_at FROM todo_status_log "
+                f"WHERE todo_id IN ({placeholders}) ORDER BY created_at ASC",
+                todo_ids
+            ).fetchall()
+            for row in timeline_rows:
+                timelines_by_todo.setdefault(row["todo_id"], []).append(
+                    (row["created_at"], row["new_status"])
+                )
+
+        def status_at(todo_id, timestamp):
+            status = 'todo'
+            for created_at, new_status in timelines_by_todo.get(todo_id, []):
+                if created_at > timestamp:
+                    break
+                status = new_status
+            return status
 
         result = []
         for e in entries:
             todo = todos_by_id.get(e["todo_id"])
             if todo is None:
                 continue
+            status = e["status_at_time"]
+            if status is None:
+                status = status_at(e["todo_id"], e["created_at"])
             e["todo_title"] = todo["title"]
             e["labels"] = labels_by_todo.get(e["todo_id"], [])
-            e["todo_status_label"] = STATUS_LABELS.get(todo["status"], todo["status"])
+            e["todo_status_label"] = STATUS_LABELS.get(status, status)
+            del e["status_at_time"]
             result.append(e)
         return result
 

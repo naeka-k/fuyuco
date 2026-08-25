@@ -126,6 +126,7 @@ def init_db():
                 created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
             )
         """)
+        ensure_column(conn, "todo_memos", "status", "TEXT")
         rows = conn.execute(
             "SELECT id, memo FROM todos WHERE memo IS NOT NULL AND memo != ''"
         ).fetchall()

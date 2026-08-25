@@ -233,6 +233,18 @@ class TestTodoMemos:
         assert len(memos) == 1
         assert memos[0]["content"] == "Memo content"
 
+    def test_memo_captures_status_at_creation_time(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing")
+        memo = create_todo_memo(todo["id"], "In progress note")
+        assert memo["status"] == "doing"
+
+        set_todo_status(todo["id"], "done")
+        later_memo = create_todo_memo(todo["id"], "Done note")
+        assert later_memo["status"] == "done"
+        memos_by_content = {m["content"]: m for m in get_todo_memos(todo["id"])}
+        assert memos_by_content["In progress note"]["status"] == "doing"
+
     def test_no_memos_returns_empty_list(self, db):
         todo = create_todo("Task", None)
         assert get_todo_memos(todo["id"]) == []
@@ -358,6 +370,31 @@ class TestTodoMemoLog:
         delete_todo(todo["id"])
 
         assert get_todo_memo_log() == []
+
+    def test_memo_status_reflects_time_of_writing_not_current_status(self, db):
+        todo = create_todo("Task", None)
+        set_todo_status(todo["id"], "doing")
+        create_todo_memo(todo["id"], "作業中メモ")
+        set_todo_status(todo["id"], "done")
+
+        entries = get_todo_memo_log()
+        memo_entry = next(e for e in entries if e["content"] == "作業中メモ")
+        assert memo_entry["todo_status_label"] == "実施中"
+
+    def test_legacy_memo_without_status_falls_back_to_status_log(self, db):
+        todo = create_todo("Task", None)
+        memo = create_todo_memo(todo["id"], "古いメモ")
+        with get_todo_conn() as conn:
+            conn.execute(
+                "UPDATE todo_memos SET status = NULL, created_at = ? WHERE id = ?",
+                ("2023-01-02 09:00:00", memo["id"])
+            )
+        set_todo_status(todo["id"], "doing")
+        self._set_status_log_created_at(todo["id"], "2023-01-01 09:00:00")
+
+        entries = get_todo_memo_log()
+        memo_entry = next(e for e in entries if e["content"] == "古いメモ")
+        assert memo_entry["todo_status_label"] == "実施中"
 
 
 class TestTodoLabels:
