@@ -1328,7 +1328,7 @@ function render(todos) {
                 `<span class="card-tag-pill" style="background:${escHtml(tg.color)};color:#fff" title="${escHtml(tg.name)}" onclick="event.stopPropagation(); goToLabelManagement(${tg.id})">${escHtml(truncTag(tg.name))}</span>`
             ).join('');
 
-            const recLabelMap = { daily: '毎日', weekly: '毎週', monthly: '毎月' };
+            const recLabelMap = { daily: '毎日', weekly: '毎週', monthly: '毎月', yearly: '毎年' };
             function recLabel(r) {
                 if (!r) {
                     return '';
