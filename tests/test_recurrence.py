@@ -79,3 +79,15 @@ class TestCalcNextDeadlineMonthly:
 
     def test_crosses_year_boundary(self):
         assert calc_next_deadline("2023-12-15T00:00:00", {"type": "monthly", "dates": []}) == "2024-01-15T00:00:00"
+
+
+class TestCalcNextDeadlineYearly:
+    def test_same_month_and_day_next_year(self):
+        assert calc_next_deadline("2023-06-28T00:00:00", {"type": "yearly"}) == "2024-06-28T00:00:00"
+
+    def test_preserves_time_part(self):
+        assert calc_next_deadline("2023-03-15T14:30:00", {"type": "yearly"}) == "2024-03-15T14:30:00"
+
+    def test_clamps_feb_29_to_28_in_non_leap_year(self):
+        # 2024 is a leap year, 2025 is not
+        assert calc_next_deadline("2024-02-29T00:00:00", {"type": "yearly"}) == "2025-02-28T00:00:00"

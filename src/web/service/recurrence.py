@@ -4,7 +4,7 @@
 parse_rec関数は、繰り返し設定を辞書形式で返す。
 文字列が渡された場合はJSONとして解析し、失敗した場合は'type'キーの値として文字列を持つ辞書を返す。
 calc_next_deadline関数は、締め切りと繰り返し設定から次の締め切りを計算する。
-繰り返し設定のタイプに応じて、日次、週次、月次の計算を行う。
+繰り返し設定のタイプに応じて、日次、週次、月次、年次の計算を行う。
 calc_next_deadline関数は、締め切りが空の場合や、繰り返し設定の内容が不正な場合はNoneを返す。
 '''
 import calendar
@@ -74,6 +74,10 @@ def calc_next_deadline(dl_str, rec):
             else:
                 m, y = d.month, d.year
             next_d = date(y, m, min(nxt_day, calendar.monthrange(y, m)[1]))
+
+    elif rec_type == 'yearly':
+        y = d.year + 1
+        next_d = date(y, d.month, min(d.day, calendar.monthrange(y, d.month)[1]))
 
     else:
         return None
