@@ -1192,6 +1192,48 @@ body {
   border-radius: 8px;
 }
 
+.note-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0006;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.note-modal {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: 100%;
+}
+.note-modal .note-card {
+  height: 80vh;
+  width: 100%;
+  box-shadow: 0 8px 40px #00000040;
+}
+.note-modal-close {
+  position: absolute;
+  top: -16px;
+  right: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000030;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+.note-modal-close:hover {
+  background: #f0f0f0;
+}
+.note-modal .note-expand-btn {
+  display: none;
+}
+
 .note-tags {
   display: flex;
   gap: 4px;

@@ -1970,6 +1970,15 @@ function buildCard(note) {
     const actionsEl = document.createElement('div');
     actionsEl.className = 'note-card-actions';
 
+    const expandBtn = document.createElement('button');
+    expandBtn.className = 'note-btn note-expand-btn';
+    expandBtn.title = '拡大表示';
+    expandBtn.textContent = '⤢';
+    expandBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openNoteExpandModal(note.id);
+    });
+
     const tagBtn = document.createElement('button');
     tagBtn.className = 'note-btn';
     tagBtn.title = 'タグを編集';
@@ -2054,6 +2063,7 @@ function buildCard(note) {
         setTimeout(() => document.addEventListener('click', outsideHandler), 0);
     });
 
+    actionsEl.appendChild(expandBtn);
     actionsEl.appendChild(linkBtn);
     actionsEl.appendChild(editToggleBtn);
     actionsEl.appendChild(archBtn);
@@ -2397,6 +2407,85 @@ function openImageLightbox(src) {
         }
     });
     document.body.appendChild(overlay);
+}
+
+let noteModalOriginalParent = null;
+let noteModalOriginalNext = null;
+
+/**
+ * メモをモーダルで拡大表示する。
+ * カードのDOM要素をそのままモーダルへ移動するため、既存の編集・自動保存・
+ * 書式ツールバーなどの挙動はそのまま引き継がれる。
+ *
+ * @param {number} noteId
+ */
+function openNoteExpandModal(noteId) {
+    if ($qs('.note-modal-overlay')) {
+        return;
+    }
+    const card = $qs(`.note-card[data-id="${noteId}"]`);
+    if (!card) {
+        return;
+    }
+    noteModalOriginalParent = card.parentNode;
+    noteModalOriginalNext = card.nextSibling;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'note-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'note-modal';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'note-modal-close';
+    closeBtn.title = '閉じる';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', closeNoteExpandModal);
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(card);
+    overlay.appendChild(modal);
+
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) {
+            closeNoteExpandModal();
+        }
+    });
+    document.addEventListener('keydown', handleNoteModalKeydown);
+    document.body.appendChild(overlay);
+}
+
+/**
+ * メモの拡大表示モーダルを閉じ、カードを元の位置に戻す。
+ * モーダル内から削除／アーカイブされ、現在の一覧に存在しなくなったメモは戻さない。
+ * 元の挿入位置が失われている場合（一覧が再描画された場合など）は末尾に戻す。
+ */
+function closeNoteExpandModal() {
+    const overlay = $qs('.note-modal-overlay');
+    if (!overlay) {
+        return;
+    }
+    const card = overlay.querySelector('.note-card');
+    if (card && noteModalOriginalParent && allNotes.some(n => n.id === +card.dataset.id)) {
+        const nextIsValid = noteModalOriginalNext === null
+            || noteModalOriginalParent.contains(noteModalOriginalNext);
+        noteModalOriginalParent.insertBefore(card, nextIsValid ? noteModalOriginalNext : null);
+    }
+    overlay.remove();
+    noteModalOriginalParent = null;
+    noteModalOriginalNext = null;
+    document.removeEventListener('keydown', handleNoteModalKeydown);
+}
+
+/**
+ * メモ拡大モーダル表示中にEscapeキーで閉じられるようにする。
+ * @param {KeyboardEvent} e
+ */
+function handleNoteModalKeydown(e) {
+    if (e.key === 'Escape') {
+        closeNoteExpandModal();
+    }
 }
 
 /**
