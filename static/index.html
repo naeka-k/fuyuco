@@ -98,115 +98,124 @@
     <!-- タスク詳細サイドバー -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-body">
-        <div class="field sb-title-field">
-          <label>タイトル</label>
-          <button class="btn-star-sb" id="sb-star-btn" onclick="toggleStarSelected()" title="優先度">⭐</button>
-          <button class="btn-link-sb" id="sb-link-btn" onclick="copyTodoLink()" title="リンクをコピー">🔗</button>
-          <button class="btn-trash-del" id="sb-del-btn" onclick="delSelected()" title="削除">🗑</button>
-          <input type="text" id="sb-title" />
-        </div>
-        <div class="field" id="sb-status-field">
-          <label>ステータス</label>
-          <div class="status-radios">
-            <label class="status-radio-label"><input type="radio" name="sb-status" value="todo" onchange="setStatusSelected('todo')"><span>未着手</span></label>
-            <label class="status-radio-label"><input type="radio" name="sb-status" value="doing" onchange="setStatusSelected('doing')"><span>実施中</span></label>
-            <label class="status-radio-label"><input type="radio" name="sb-status" value="done" onchange="setStatusSelected('done')"><span>完了</span></label>
-            <label class="status-radio-label"><input type="radio" name="sb-status" value="waiting" onchange="setStatusSelected('waiting')"><span>待機中</span></label>
-          </div>
-        </div>
-        <div class="field">
-          <label>期限</label>
-          <div class="deadline-row">
-            <input type="date" id="sb-deadline-date" />
-            <div class="field-select-wrap deadline-time-wrap">
-              <select id="sb-deadline-time">
-              <option value="00:00">00:00</option>
-              <option value="01:00">01:00</option>
-              <option value="02:00">02:00</option>
-              <option value="03:00">03:00</option>
-              <option value="04:00">04:00</option>
-              <option value="05:00">05:00</option>
-              <option value="06:00">06:00</option>
-              <option value="07:00">07:00</option>
-              <option value="08:00">08:00</option>
-              <option value="09:00">09:00</option>
-              <option value="10:00">10:00</option>
-              <option value="11:00">11:00</option>
-              <option value="12:00">12:00</option>
-              <option value="13:00">13:00</option>
-              <option value="14:00">14:00</option>
-              <option value="15:00">15:00</option>
-              <option value="16:00">16:00</option>
-              <option value="17:00">17:00</option>
-              <option value="18:00">18:00</option>
-              <option value="19:00">19:00</option>
-              <option value="20:00">20:00</option>
-              <option value="21:00">21:00</option>
-              <option value="22:00">22:00</option>
-              <option value="23:00">23:00</option>
-              </select>
+        <div class="sb-columns">
+          <div class="sb-column-left">
+            <div class="field sb-title-field">
+              <label>タイトル</label>
+              <button class="btn-expand-sb" id="sb-expand-btn" onclick="openTodoExpandModal()" title="拡大表示">⤢</button>
+              <button class="btn-star-sb" id="sb-star-btn" onclick="toggleStarSelected()" title="優先度">⭐</button>
+              <button class="btn-link-sb" id="sb-link-btn" onclick="copyTodoLink()" title="リンクをコピー">🔗</button>
+              <button class="btn-trash-del" id="sb-del-btn" onclick="delSelected()" title="削除">🗑</button>
+              <input type="text" id="sb-title" />
+            </div>
+            <div class="field" id="sb-status-field">
+              <label>ステータス</label>
+              <div class="status-radios">
+                <label class="status-radio-label"><input type="radio" name="sb-status" value="todo" onchange="setStatusSelected('todo')"><span>未着手</span></label>
+                <label class="status-radio-label"><input type="radio" name="sb-status" value="doing" onchange="setStatusSelected('doing')"><span>実施中</span></label>
+                <label class="status-radio-label"><input type="radio" name="sb-status" value="done" onchange="setStatusSelected('done')"><span>完了</span></label>
+                <label class="status-radio-label"><input type="radio" name="sb-status" value="waiting" onchange="setStatusSelected('waiting')"><span>待機中</span></label>
+              </div>
+            </div>
+            <div class="sb-inline-fields">
+              <div class="field">
+                <label>期限</label>
+                <div class="deadline-row">
+                  <input type="date" id="sb-deadline-date" />
+                  <div class="field-select-wrap deadline-time-wrap">
+                    <select id="sb-deadline-time">
+                    <option value="00:00">00:00</option>
+                    <option value="01:00">01:00</option>
+                    <option value="02:00">02:00</option>
+                    <option value="03:00">03:00</option>
+                    <option value="04:00">04:00</option>
+                    <option value="05:00">05:00</option>
+                    <option value="06:00">06:00</option>
+                    <option value="07:00">07:00</option>
+                    <option value="08:00">08:00</option>
+                    <option value="09:00">09:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="12:00">12:00</option>
+                    <option value="13:00">13:00</option>
+                    <option value="14:00">14:00</option>
+                    <option value="15:00">15:00</option>
+                    <option value="16:00">16:00</option>
+                    <option value="17:00">17:00</option>
+                    <option value="18:00">18:00</option>
+                    <option value="19:00">19:00</option>
+                    <option value="20:00">20:00</option>
+                    <option value="21:00">21:00</option>
+                    <option value="22:00">22:00</option>
+                    <option value="23:00">23:00</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label>繰り返し</label>
+                <div class="field-select-wrap">
+                  <select id="sb-recurrence">
+                    <option value="">なし</option>
+                    <option value="daily">毎日</option>
+                    <option value="weekly">毎週</option>
+                    <option value="monthly">毎月</option>
+                    <option value="yearly">毎年</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label>通知</label>
+                <div class="field-select-wrap">
+                  <select id="sb-notify">
+                    <option value="">通知なし</option>
+                    <option value="60">1時間前</option>
+                    <option value="30">30分前</option>
+                    <option value="15">15分前</option>
+                    <option value="5">5分前</option>
+                    <option value="0">その時間</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div id="sb-recurrence-extra">
+              <div class="field" id="sb-weekdays-field">
+                <label>曜日</label>
+                <div class="recurrence-day-row">
+                  <button class="recurrence-day-btn" data-day="0" type="button">月</button>
+                  <button class="recurrence-day-btn" data-day="1" type="button">火</button>
+                  <button class="recurrence-day-btn" data-day="2" type="button">水</button>
+                  <button class="recurrence-day-btn" data-day="3" type="button">木</button>
+                  <button class="recurrence-day-btn" data-day="4" type="button">金</button>
+                  <button class="recurrence-day-btn" data-day="5" type="button">土</button>
+                  <button class="recurrence-day-btn" data-day="6" type="button">日</button>
+                </div>
+              </div>
+              <div class="field" id="sb-monthdates-field">
+                <label>日付</label>
+                <div class="recurrence-date-grid" id="sb-date-grid"></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>参考URL</label>
+              <div id="sb-urls"></div>
+              <button type="button" id="sb-url-add-btn" class="btn-url-add">＋ URLを追加</button>
+            </div>
+            <div class="field">
+              <label>ラベル</label>
+              <div id="sb-selected-tags" class="sb-selected-tags"></div>
+              <button type="button" id="sb-tag-btn" class="btn-url-add">＋ ラベルを追加</button>
             </div>
           </div>
-        </div>
-        <div class="field">
-          <label>繰り返し</label>
-          <div class="field-select-wrap">
-            <select id="sb-recurrence">
-              <option value="">なし</option>
-              <option value="daily">毎日</option>
-              <option value="weekly">毎週</option>
-              <option value="monthly">毎月</option>
-              <option value="yearly">毎年</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label>通知</label>
-          <div class="field-select-wrap">
-            <select id="sb-notify">
-              <option value="">通知なし</option>
-              <option value="60">1時間前</option>
-              <option value="30">30分前</option>
-              <option value="15">15分前</option>
-              <option value="5">5分前</option>
-              <option value="0">その時間</option>
-            </select>
-          </div>
-        </div>
-        <div id="sb-recurrence-extra">
-          <div class="field" id="sb-weekdays-field">
-            <label>曜日</label>
-            <div class="recurrence-day-row">
-              <button class="recurrence-day-btn" data-day="0" type="button">月</button>
-              <button class="recurrence-day-btn" data-day="1" type="button">火</button>
-              <button class="recurrence-day-btn" data-day="2" type="button">水</button>
-              <button class="recurrence-day-btn" data-day="3" type="button">木</button>
-              <button class="recurrence-day-btn" data-day="4" type="button">金</button>
-              <button class="recurrence-day-btn" data-day="5" type="button">土</button>
-              <button class="recurrence-day-btn" data-day="6" type="button">日</button>
+          <div class="sb-column-right">
+            <div class="field">
+              <div class="memo-label-row">
+                <label>メモ</label>
+                <button type="button" class="btn-memo-add" id="sb-memo-add-btn">＋ 追加</button>
+              </div>
+              <div id="sb-memo-list"></div>
             </div>
           </div>
-          <div class="field" id="sb-monthdates-field">
-            <label>日付</label>
-            <div class="recurrence-date-grid" id="sb-date-grid"></div>
-          </div>
-        </div>
-        <div class="field">
-          <label>参考URL</label>
-          <div id="sb-urls"></div>
-          <button type="button" id="sb-url-add-btn" class="btn-url-add">＋ URLを追加</button>
-        </div>
-        <div class="field">
-          <label>ラベル</label>
-          <div id="sb-selected-tags" class="sb-selected-tags"></div>
-          <button type="button" id="sb-tag-btn" class="btn-url-add">＋ ラベルを追加</button>
-        </div>
-        <div class="field">
-          <div class="memo-label-row">
-            <label>メモ</label>
-            <button type="button" class="btn-memo-add" id="sb-memo-add-btn">＋ 追加</button>
-          </div>
-          <div id="sb-memo-list"></div>
         </div>
       </div>
     </div>

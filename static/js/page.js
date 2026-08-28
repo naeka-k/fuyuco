@@ -200,6 +200,11 @@ let noteSelectedColor = TAG_PRESET_COLORS[5];
 // ── TODOメモ状態 ──
 let memoSaveTimers = {};
 
+// ── TODO拡大モーダル状態 ──
+let isTodoModalOpen = false;
+let todoModalOriginalParent = null;
+let todoModalOriginalNext = null;
+
 // ── 通知状態 ──
 const notifiedTodos = new Set();
 // ── ラベル管理状態 ──
@@ -1587,10 +1592,14 @@ function getDefaultDeadline() {
  * サイドバーのクローズ。
  * URLハッシュがTODO個別のリンクになっている場合は、現在のセクションの
  * ハッシュに戻す。
+ * 拡大表示モーダルが開いている場合は、サイドバーを元の位置に戻してから閉じる。
  *
  */
 function closeSidebar() {
     const hadSelection = selectedTodoId !== null;
+    if (isTodoModalOpen) {
+        closeTodoExpandModal();
+    }
     selectedTodoId = null;
     isNewMode = false;
     Object.values(memoSaveTimers).forEach(t => clearTimeout(t));
@@ -1646,6 +1655,8 @@ async function loadTodoMemos(todoId) {
 
 /**
  * TODOメモ一覧をDOMに描画する。
+ * 拡大表示モーダル（isTodoModalOpen）が開いている間は、履歴を一度に見られるよう
+ * 全件を展開表示する。通常時は最新の1件のみ展開する
  * @param {number} todoId
  * @param {Array} memos
  */
@@ -1695,7 +1706,7 @@ function renderMemoList(todoId, memos) {
         toggleBtn.type = 'button';
         toggleBtn.className = 'memo-toggle-btn';
 
-        let expanded = (index === 0);
+        let expanded = (index === 0) || isTodoModalOpen;
 
         function applyState() {
             if (expanded) {
@@ -2497,6 +2508,85 @@ function closeNoteExpandModal() {
 function handleNoteModalKeydown(e) {
     if (e.key === 'Escape') {
         closeNoteExpandModal();
+    }
+}
+
+/**
+ * TODOをモーダルで拡大表示する。
+ * サイドバーのDOM要素をそのままモーダルへ移動するため、編集内容・自動保存・
+ * ステータス変更などの挙動はそのまま引き継がれる。
+ * メモ履歴を一度に見られるよう、開いている間はメモ一覧を全件展開表示にする。
+ */
+function openTodoExpandModal() {
+    if (selectedTodoId === null || $qs('.todo-modal-overlay')) {
+        return;
+    }
+    const sidebar = $ge('sidebar');
+    todoModalOriginalParent = sidebar.parentNode;
+    todoModalOriginalNext = sidebar.nextSibling;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'todo-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'todo-modal';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'todo-modal-close';
+    closeBtn.title = '閉じる';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', closeTodoExpandModal);
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(sidebar);
+    overlay.appendChild(modal);
+
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) {
+            closeTodoExpandModal();
+        }
+    });
+    document.addEventListener('keydown', handleTodoModalKeydown);
+    document.body.appendChild(overlay);
+
+    isTodoModalOpen = true;
+    loadTodoMemos(selectedTodoId);
+}
+
+/**
+ * TODOの拡大表示モーダルを閉じ、サイドバーを元の位置に戻す。
+ * 元の挿入位置が失われている場合（画面切り替えなどでレイアウトが変わった場合）は
+ * 末尾に戻す。閉じた後はメモ一覧を通常表示（最新の1件のみ展開）に戻す。
+ */
+function closeTodoExpandModal() {
+    const overlay = $qs('.todo-modal-overlay');
+    if (!overlay) {
+        return;
+    }
+    const sidebar = overlay.querySelector('#sidebar');
+    if (sidebar && todoModalOriginalParent) {
+        const nextIsValid = todoModalOriginalNext === null
+            || todoModalOriginalParent.contains(todoModalOriginalNext);
+        todoModalOriginalParent.insertBefore(sidebar, nextIsValid ? todoModalOriginalNext : null);
+    }
+    overlay.remove();
+    todoModalOriginalParent = null;
+    todoModalOriginalNext = null;
+    isTodoModalOpen = false;
+    document.removeEventListener('keydown', handleTodoModalKeydown);
+    if (selectedTodoId !== null) {
+        loadTodoMemos(selectedTodoId);
+    }
+}
+
+/**
+ * TODO拡大モーダル表示中にEscapeキーで閉じられるようにする。
+ * @param {KeyboardEvent} e
+ */
+function handleTodoModalKeydown(e) {
+    if (e.key === 'Escape') {
+        closeTodoExpandModal();
     }
 }
 
